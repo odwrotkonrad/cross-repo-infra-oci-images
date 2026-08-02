@@ -123,16 +123,14 @@ build-ci-linux-image-arm64:
 
 build-dev-sandbox-image-amd64:
   extends: .build-dev-sandbox
-  needs:
-    - job: build-ci-linux-image-amd64
-      optional: true
+  needs: []
   script:
-    #[why] configs main SHA -> CONFIGS_REF build-arg: busts the clone + sync-install layers only when configs main moved (unchanged configs keeps the cached layers), no --no-cache
+    #[why] configs main SHA -> CONFIGS_REF build-arg: busts the che run layer only when configs main moved (unchanged configs keeps the cached layer), no --no-cache
     - CONFIGS_REF="$(git ls-remote https://gitlab.com/konradodwrot/configs.git refs/heads/main | cut -f1)"
     - docker buildx build
         --file "$CI_PROJECT_DIR/ci/dev-sandbox/Dockerfile"
         --platform linux/amd64
-        --build-arg "BASE_IMAGE=$CI_LINUX_IMAGE:$VERSION_TAG"
+        --build-arg "CHE_REF=$CHE_REF"
         --build-arg "CONFIGS_REF=$CONFIGS_REF"
         --tag "$DEV_SANDBOX_IMAGE:$VERSION_TAG"
         --tag "$DEV_SANDBOX_IMAGE:latest"
@@ -142,15 +140,12 @@ build-dev-sandbox-image-amd64:
 
 build-dev-sandbox-image-arm64:
   extends: .build-image-arm64-local
-  needs:
-    - job: build-ci-linux-image-arm64
-      optional: true
+  needs: []
   script:
-    #[why] configs main SHA -> CONFIGS_REF build-arg: busts the clone + sync-install layers only when configs main moved (unchanged configs keeps the cached layers)
+    #[why] configs main SHA -> CONFIGS_REF build-arg: busts the che run layer only when configs main moved (unchanged configs keeps the cached layer)
     - CONFIGS_REF="$(git ls-remote https://gitlab.com/konradodwrot/configs.git refs/heads/main | cut -f1)"
     - sudo docker build
         --file "$CI_PROJECT_DIR/ci/dev-sandbox/Dockerfile"
-        --build-arg "BASE_IMAGE=$CI_LINUX_IMAGE:$VERSION_TAG-arm64"
         --build-arg "CONFIGS_REF=$CONFIGS_REF"
         --tag "$DEV_SANDBOX_IMAGE:$VERSION_TAG-arm64"
         --tag "$DEV_SANDBOX_IMAGE:latest-arm64"

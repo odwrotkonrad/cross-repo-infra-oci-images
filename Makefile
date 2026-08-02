@@ -9,14 +9,8 @@ COMMANDS := render-templates repo-ci-prepare-hooks repo-ci-precommit-all image-b
 
 .PHONY: $(WRAPPERS) $(COMMANDS)
 
-##[>] Environment Variables [genai-include]
-#[what] dev-sandbox base image ref, unset -> ci-linux:local (built by image-build-ci-linux)
-#[vals] image ref
-export BASE_IMAGE
-##[<] Environment Variables
-
 ##[>] Wrappers [genai-include]
-#[what] build both images for the host arch: ci-linux:local, then dev-sandbox:local FROM it
+#[what] build both images for the host arch: ci-linux:local and dev-sandbox:local (independent)
 image-build-all: image-build-ci-linux image-build-dev-sandbox
 ##[<] Wrappers
 
@@ -25,7 +19,7 @@ image-build-all: image-build-ci-linux image-build-dev-sandbox
 image-build-ci-linux:
 	@image-build-ci-linux.zsh
 
-#[what] build dev-sandbox:local for the host arch (BASE_IMAGE base, configs main baked fresh)
+#[what] build dev-sandbox:local for the host arch (bare debian base, configs zsh/base-linux profile loaded via remote ref)
 image-build-dev-sandbox:
 	@image-build-dev-sandbox.zsh
 ##[<] Images
