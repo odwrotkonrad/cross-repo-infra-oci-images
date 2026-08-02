@@ -91,26 +91,6 @@ build-ci-linux-image-arm64:
         --push
         "$CI_PROJECT_DIR"
 
-#[why] the dev-sandbox bake (brew + che sync) is qemu-hostile: run arm64 on the local tart runner, native Apple Silicon linux VM. cirruslabs ubuntu guest, admin/admin ssh, docker installed at job start
-.build-image-arm64-local:
-  stage: build-image
-  tags: [local]
-  image: ghcr.io/cirruslabs/ubuntu:latest
-  variables:
-    TART_EXECUTOR_SSH_USERNAME: admin
-    TART_EXECUTOR_SSH_PASSWORD: admin
-  rules:
-    - if: $CI_MERGE_REQUEST_DRAFT == "true"
-      when: never
-    - if: $BUILD_ALL_IMAGES
-    - if: $BUILD_DEV_SANDBOX_IMAGES
-    - when: manual
-      allow_failure: true
-  before_script:
-    - command -v docker >/dev/null || { sudo apt-get update && sudo apt-get install -y docker.io; }
-    - echo "$CI_REGISTRY_PASSWORD" | sudo docker login -u "$CI_REGISTRY_USER" --password-stdin "$CI_REGISTRY"
-    - VERSION_TAG="${CI_COMMIT_TAG:-latest}"
-
 .build-dev-sandbox:
   extends: .build-image
   rules:
@@ -138,22 +118,24 @@ build-dev-sandbox-image-amd64:
         --push
         "$CI_PROJECT_DIR"
 
+#[why] the dev-sandbox bake (brew + che run) is qemu-hostile: run it natively on a gitlab-hosted arm64 runner (saas-linux-medium-arm64), same dind shape as amd64
 build-dev-sandbox-image-arm64:
-  extends: .build-image-arm64-local
+  extends: .build-dev-sandbox
+  tags: [saas-linux-medium-arm64]
   needs: []
   script:
     #[why] configs main SHA -> CONFIGS_REF build-arg: busts the che run layer only when configs main moved (unchanged configs keeps the cached layer)
     - CONFIGS_REF="$(git ls-remote https://gitlab.com/konradodwrot/configs.git refs/heads/main | cut -f1)"
-    - sudo docker build
+    - docker buildx build
         --file "$CI_PROJECT_DIR/ci/dev-sandbox/Dockerfile"
+        --platform linux/arm64
+        --build-arg "CHE_REF=$CHE_REF"
         --build-arg "CONFIGS_REF=$CONFIGS_REF"
         --tag "$DEV_SANDBOX_IMAGE:$VERSION_TAG-arm64"
         --tag "$DEV_SANDBOX_IMAGE:latest-arm64"
         --tag "$DEV_SANDBOX_IMAGE:$CI_COMMIT_SHORT_SHA-arm64"
+        --push
         "$CI_PROJECT_DIR"
-    - sudo docker push "$DEV_SANDBOX_IMAGE:$VERSION_TAG-arm64"
-    - sudo docker push "$DEV_SANDBOX_IMAGE:latest-arm64"
-    - sudo docker push "$DEV_SANDBOX_IMAGE:$CI_COMMIT_SHORT_SHA-arm64"
 
 #[why] self-bootstrapping: this repo's own image may not exist yet (chicken/egg), so bootstrap from a minimal debian and fetch the same prebuilt che/lefthook the image bakes (no slow CGO compile of che)
 validate-pre-commit-all:
