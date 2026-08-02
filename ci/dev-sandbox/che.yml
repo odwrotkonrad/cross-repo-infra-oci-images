@@ -1,8 +1,0 @@
-# yaml-language-server: $schema=https://gitlab.com/konradodwrot/go-modules/-/raw/main/che/assets/data/che.schema.json
-##[>] 🤖🤖
-minimal:
-  options: {autoDiscover: true}
-  include:
-    profiles:
-      - source: "@https://gitlab.com/konradodwrot/configs.git/che.yml::zsh/base-linux"
-##[<] 🤖🤖
