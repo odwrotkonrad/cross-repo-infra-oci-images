@@ -9,8 +9,9 @@ typeset repo_root=$(git -C ${0:A:h} rev-parse --show-toplevel)
 
 (( $+commands[docker] )) || fn-exit-with 1 "${0:t}: docker not found"
 
-#[why] configs main SHA -> CONFIGS_REF: busts the che run layer only when configs main moved (unchanged configs keeps the cached layer)
-typeset configs_ref=$(git ls-remote https://gitlab.com/konradodwrot/configs.git refs/heads/main | cut -f1)
+#[why] latest commits touching tools/zsh + che.yml -> CONFIGS_REF: busts the che run layer only when the sourced zsh profile itself changed, not on every configs push
+function configs_path_ref { curl -fsS "https://gitlab.com/api/v4/projects/konradodwrot%2Fconfigs/repository/commits?path=${1}&per_page=1" | sed -n 's/.*"id":"\([0-9a-f]*\)".*/\1/p' }
+typeset configs_ref="$(configs_path_ref tools/zsh)-$(configs_path_ref che.yml)"
 
 #[why] etag of the latest che tarball -> CHE_REF: busts the che layer only when che re-published (mirrors the CI jobs)
 typeset che_ref=$(curl -fsSI "https://gitlab.com/api/v4/projects/konradodwrot%2Fgo-modules/packages/generic/che/latest/che_latest_linux_$(uname -m | sed 's/aarch64\|arm64/arm64/;s/x86_64/amd64/').tar.gz" | tr -d '\r' | awk 'tolower($1)=="etag:"{print $2}')

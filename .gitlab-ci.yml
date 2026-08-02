@@ -98,6 +98,10 @@ build-ci-linux-image-arm64:
       when: never
     - if: $BUILD_ALL_IMAGES
     - if: $BUILD_DEV_SANDBOX_IMAGES
+    - if: $CI_COMMIT_TAG
+    - changes:
+        - ci/dev-sandbox/**/*
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
     - when: manual
       allow_failure: true
 
@@ -105,8 +109,8 @@ build-dev-sandbox-image-amd64:
   extends: .build-dev-sandbox
   needs: []
   script:
-    #[why] configs main SHA -> CONFIGS_REF build-arg: busts the che run layer only when configs main moved (unchanged configs keeps the cached layer), no --no-cache
-    - CONFIGS_REF="$(git ls-remote https://gitlab.com/konradodwrot/configs.git refs/heads/main | cut -f1)"
+    #[why] latest commits touching tools/zsh + che.yml -> CONFIGS_REF build-arg: busts the che run layer only when the sourced zsh profile itself changed, not on every configs push, no --no-cache
+    - CONFIGS_REF="$(wget -qO- 'https://gitlab.com/api/v4/projects/konradodwrot%2Fconfigs/repository/commits?path=tools/zsh&per_page=1' | sed -n 's/.*"id":"\([0-9a-f]*\)".*/\1/p')-$(wget -qO- 'https://gitlab.com/api/v4/projects/konradodwrot%2Fconfigs/repository/commits?path=che.yml&per_page=1' | sed -n 's/.*"id":"\([0-9a-f]*\)".*/\1/p')"
     - docker buildx build
         --file "$CI_PROJECT_DIR/ci/dev-sandbox/Dockerfile"
         --platform linux/amd64
@@ -124,8 +128,8 @@ build-dev-sandbox-image-arm64:
   tags: [saas-linux-medium-arm64]
   needs: []
   script:
-    #[why] configs main SHA -> CONFIGS_REF build-arg: busts the che run layer only when configs main moved (unchanged configs keeps the cached layer)
-    - CONFIGS_REF="$(git ls-remote https://gitlab.com/konradodwrot/configs.git refs/heads/main | cut -f1)"
+    #[why] latest commits touching tools/zsh + che.yml -> CONFIGS_REF build-arg: busts the che run layer only when the sourced zsh profile itself changed, not on every configs push
+    - CONFIGS_REF="$(wget -qO- 'https://gitlab.com/api/v4/projects/konradodwrot%2Fconfigs/repository/commits?path=tools/zsh&per_page=1' | sed -n 's/.*"id":"\([0-9a-f]*\)".*/\1/p')-$(wget -qO- 'https://gitlab.com/api/v4/projects/konradodwrot%2Fconfigs/repository/commits?path=che.yml&per_page=1' | sed -n 's/.*"id":"\([0-9a-f]*\)".*/\1/p')"
     - docker buildx build
         --file "$CI_PROJECT_DIR/ci/dev-sandbox/Dockerfile"
         --platform linux/arm64
