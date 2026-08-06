@@ -26,7 +26,7 @@ a cached image pull.
 ### Goals
 
 - One shared, versioned CI base image every repo pulls.
-- Both arches: amd64 automatic, arm64 manual, `-arm64` tag suffix.
+- Both arches built automatically, `-arm64` tag suffix, MR pipelines warm the build cache, tag/main pipelines publish.
 - Single source of truth for CI tool versions (`ci/tool-versions.env`).
 - Public-pullable, so cross-project pulls need no auth.
 - Fast pipelines: no per-job compile of che, no per-job tool downloads.

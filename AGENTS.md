@@ -26,7 +26,7 @@ a cached image pull.
 ## Goals
 
 - One shared, versioned CI base image every repo pulls.
-- Both arches: amd64 automatic, arm64 manual, `-arm64` tag suffix.
+- Both arches built automatically, `-arm64` tag suffix, MR pipelines warm the build cache, tag/main pipelines publish.
 - Single source of truth for CI tool versions (`ci/tool-versions.env`).
 - Public-pullable, so cross-project pulls need no auth.
 - Fast pipelines: no per-job compile of che, no per-job tool downloads.
@@ -40,7 +40,7 @@ a cached image pull.
 - `conventions/templates/convention.md`: generating repo docs with che templates: `templates/1-env|2-data|3-audience`, `che.yml` wiring, `make render-templates`.
 - `conventions/ci/convention.md`: lefthook pre-commit hooks (minimal: docs generation check), re-run in a minimal CI validate job.
 - `conventions/license/convention.md`: every public repo carries `LICENSE` (unmodified MIT, creation-year copyright).
-- `conventions/spec-scenarios/convention.md`: behavior specs as markdown feature files: Gherkin-style scenarios, each with a `Status:` line (`todo | implemented | tested`), statuses kept accurate.
+- `conventions/spec-scenarios/convention.md`: behavior specs as markdown feature files: Gherkin-style scenarios, each with a `Status:` line (`todo | implemented | tested`), statuses kept accurate, each scenario title a value statement for its audience.
 - `conventions/claude-agents/convention.md`: per-repo `RO-<Repo>`/`RW-<Repo>` claude agents, che-rendered into `.claude/` on virt only: shared snippets in `configs`, fetched as remote renderTemplates sources (`@<repo>//<path>` + `ctx`), rendered outputs never committed.
 
 Each convention dir carries a runnable `example/`. This repo itself follows all of these conventions.
