@@ -42,7 +42,7 @@ The image builds per arch, one CI job each: amd64 owns the bare tags
 
 ### ci-linux
 
-`registry.gitlab.com/konradodwrot/unrestricted/infra/oci-images/ci-linux:latest`
+`registry.gitlab.com/konradodwrot/infra/oci-images/ci-linux:latest`
 
 `FROM debian:bookworm-slim`, baking the shared CI toolchain so consuming jobs
 skip the per-pipeline `apt-get` + `go install` + `curl` bootstrap:
@@ -63,7 +63,7 @@ skip the per-pipeline `apt-get` + `go install` + `curl` bootstrap:
 
 ```yaml
 variables:
-  CI_IMAGE: registry.gitlab.com/konradodwrot/unrestricted/infra/oci-images/ci-linux:vX.Y.Z
+  CI_IMAGE: registry.gitlab.com/konradodwrot/infra/oci-images/ci-linux:vX.Y.Z
 
 validate-pre-commit-all:
   image: $CI_IMAGE
