@@ -70,7 +70,7 @@ RUN set -eux; \
       arm64) plat=linux_arm64 ;; \
       *) echo "unsupported arch: $arch" >&2; exit 1 ;; \
     esac; \
-    che_base="https://gitlab.com/api/v4/projects/konradodwrot%2Funrestricted%2Fgo-modules/packages/generic/che/latest"; \
+    che_base="https://gitlab.com/api/v4/projects/konradodwrot%2Fgo-modules/packages/generic/che/latest"; \
     curl -fsSL -o /tmp/che.tar.gz "${che_base}/che_latest_${plat}.tar.gz"; \
     tar -xz -C /usr/local/bin -f /tmp/che.tar.gz che render-tpl; \
     rm /tmp/che.tar.gz
