@@ -4,7 +4,6 @@ assets
   docs-agents
 ci
   ci-linux
-  dev-sandbox
   zsh
     scripts
 templates

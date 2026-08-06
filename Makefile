@@ -4,30 +4,14 @@ SHELL := zsh
 .SHELLFLAGS := -c
 export PATH := $(CURDIR)/ci/zsh/scripts:$(PATH)
 
-WRAPPERS := image-build-all
-COMMANDS := render-templates repo-ci-prepare-hooks repo-ci-precommit-all image-build-ci-linux image-build-dev-sandbox
+COMMANDS := render-templates repo-ci-prepare-hooks repo-ci-precommit-all image-build-ci-linux
 
-.PHONY: $(WRAPPERS) $(COMMANDS)
-
-##[>] Environment Variables [genai-include]
-#[what] dev-sandbox base image ref, unset -> ci-linux:local (built by image-build-ci-linux)
-#[vals] image ref
-export BASE_IMAGE
-##[<] Environment Variables
-
-##[>] Wrappers [genai-include]
-#[what] build both images for the host arch: ci-linux:local, then dev-sandbox:local FROM it
-image-build-all: image-build-ci-linux image-build-dev-sandbox
-##[<] Wrappers
+.PHONY: $(COMMANDS)
 
 ##[>] Images [genai-include]
 #[what] build ci-linux:local for the host arch
 image-build-ci-linux:
 	@image-build-ci-linux.zsh
-
-#[what] build dev-sandbox:local for the host arch (BASE_IMAGE base, configs main baked fresh)
-image-build-dev-sandbox:
-	@image-build-dev-sandbox.zsh
 ##[<] Images
 
 ##[>] Docs [genai-include]

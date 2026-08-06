@@ -1,6 +1,6 @@
 # oci-images
 
-Shared OCI container images: multi-arch ci-linux CI base, dev-sandbox config-baked dev image.
+Shared OCI CI base image: multi-arch ci-linux baking the common CI toolchain.
 
 @assets/docs-agents/purpose.md
 

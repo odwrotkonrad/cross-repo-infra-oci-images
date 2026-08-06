@@ -6,12 +6,11 @@ Shared OCI container images for the `konradodwrot` repos.
 
 ## Images
 
-Both images build per arch, one CI job each: amd64 owns the bare tags
+The image builds per arch, one CI job each: amd64 owns the bare tags
 (`:vX.Y.Z` immutable release consumers pin, `:latest` moving,
 `:$CI_COMMIT_SHORT_SHA` immutable), arm64 publishes the same set with an
-`-arm64` suffix. Only the amd64 ci-linux build is automatic; arm64 and all
-dev-sandbox builds are manual pipeline jobs (qemu-emulated arm64 builds are
-slow).
+`-arm64` suffix. The amd64 build is automatic; arm64 is a manual pipeline job
+(qemu-emulated arm64 builds are slow).
 
 ### ci-linux
 
@@ -31,17 +30,6 @@ skip the per-pipeline `apt-get` + `go install` + `curl` bootstrap:
 | goreleaser | go release builds |
 | terraform | IaC (infra/git-repos) |
 | glab | GitLab CLI |
-
-### dev-sandbox
-
-`registry.gitlab.com/konradodwrot/infra/oci-images/dev-sandbox:latest`
-
-`FROM ci-linux` (same pipeline's build), cloning the public `configs` repo at
-its current `main` head (built `--no-cache` so the clone is always fresh) and
-running the full che install: `sync-install`, `cli/linux` profile, op://
-secret renders skipped. The result is a ready config-baked dev shell (zsh,
-che-loaded dotfiles, no secrets), pulled by the `sandbox` repo for local
-session pods.
 
 ## Consume
 
@@ -66,9 +54,10 @@ single source of truth for CI-image tool versions (host provisioning still lives
 
 ## Build
 
-CI builds both images with Docker buildx on changes to the Dockerfiles /
-`ci/tool-versions.env`, on `main`, or manually; `dev-sandbox` builds `FROM` the
-`ci-linux` published in the same pipeline. See `.gitlab-ci.yml`.
+CI builds the image with Docker buildx on changes to the Dockerfile /
+`ci/tool-versions.env`, on `main`, or manually. A `main` pipeline (and a che
+release arriving via `BUILD_ALL_IMAGES`) also triggers the
+`restricted/sandbox` image re-bake. See `.gitlab-ci.yml`.
 
 ## License
 
