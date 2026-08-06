@@ -78,7 +78,9 @@ RUN set -eux; \
 RUN set -eux; \
     . /tmp/tool-versions.env; \
     arch="$(uname -m)"; \
-    curl --connect-timeout 30 --retry 5 --retry-delay 2 --retry-all-errors -fsSL "https://ziglang.org/download/${ZIG_VERSION}/zig-${arch}-linux-${ZIG_VERSION}.tar.xz" | tar -xJ -C /usr/local; \
+    curl --connect-timeout 30 --retry 5 --retry-delay 2 --retry-all-errors -fsSL -o /tmp/zig.tar.xz "https://ziglang.org/download/${ZIG_VERSION}/zig-${arch}-linux-${ZIG_VERSION}.tar.xz"; \
+    tar -xJ -C /usr/local -f /tmp/zig.tar.xz; \
+    rm /tmp/zig.tar.xz; \
     ln -sf "/usr/local/zig-${arch}-linux-${ZIG_VERSION}/zig" /usr/local/bin/zig
 
 RUN set -eux; \
@@ -89,8 +91,9 @@ RUN set -eux; \
       arm64) grplat=Linux_arm64 ;; \
       *) echo "unsupported arch: $arch" >&2; exit 1 ;; \
     esac; \
-    curl --connect-timeout 30 --retry 5 --retry-delay 2 --retry-all-errors -fsSL "https://github.com/goreleaser/goreleaser/releases/download/v${GORELEASER_VERSION}/goreleaser_${grplat}.tar.gz" \
-      | tar -xz -C /usr/local/bin goreleaser
+    curl --connect-timeout 30 --retry 5 --retry-delay 2 --retry-all-errors -fsSL -o /tmp/goreleaser.tar.gz "https://github.com/goreleaser/goreleaser/releases/download/v${GORELEASER_VERSION}/goreleaser_${grplat}.tar.gz"; \
+    tar -xz -C /usr/local/bin -f /tmp/goreleaser.tar.gz goreleaser; \
+    rm /tmp/goreleaser.tar.gz
 
 RUN set -eux; \
     . /tmp/tool-versions.env; \
