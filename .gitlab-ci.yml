@@ -57,9 +57,10 @@ build-ci-linux-image-amd64:
         $OUTPUT_ARGS
         "$CI_PROJECT_DIR"
 
-#[why] qemu on the shared runners is fine for ci-linux (downloads, no compile): keep it there with buildx
 build-ci-linux-image-arm64:
   extends: .build-image
+  tags:
+    - saas-linux-small-arm64
   needs: []
   rules:
     - if: $CI_MERGE_REQUEST_DRAFT == "true"
