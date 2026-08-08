@@ -118,4 +118,14 @@ RUN set -eux; \
     curl --connect-timeout 30 --retry 10 --retry-delay 30 --retry-all-errors -fsSL -o /tmp/glab.tar.gz "https://gitlab.com/gitlab-org/cli/-/releases/v${GLAB_VERSION}/downloads/glab_${GLAB_VERSION}_linux_${arch}.tar.gz"; \
     tar -xz -C /usr/local -f /tmp/glab.tar.gz bin/glab; \
     rm /tmp/glab.tar.gz
+
+#[why] the onepassword terraform provider shells out to op when authing with a service account token
+RUN set -eux; \
+    . /tmp/tool-versions.env; \
+    arch="$(dpkg --print-architecture)"; \
+    curl --connect-timeout 30 --retry 10 --retry-delay 30 --retry-all-errors -fsSL -o /tmp/op.zip "https://cache.agilebits.com/dist/1P/op2/pkg/v${OP_VERSION}/op_linux_${arch}_v${OP_VERSION}.zip"; \
+    unzip -d /tmp/op /tmp/op.zip; \
+    mv /tmp/op/op /usr/local/bin/op; \
+    rm -rf /tmp/op /tmp/op.zip; \
+    op --version
 ##[<] 🤖🤖🤖
