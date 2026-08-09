@@ -108,7 +108,11 @@ COPY ci/terraform-providers.tf /tmp/tf-cache-seed/versions.tf
 COPY ci/terraform.lock.hcl /tmp/tf-cache-seed/.terraform.lock.hcl
 RUN set -eux; \
     mkdir -p "$TF_PLUGIN_CACHE_DIR"; \
-    terraform -chdir=/tmp/tf-cache-seed init -input=false -backend=false; \
+    for i in $(seq 1 10); do \
+      terraform -chdir=/tmp/tf-cache-seed init -input=false -backend=false && break; \
+      [ "$i" = 10 ] && exit 1; \
+      sleep 30; \
+    done; \
     chmod -R a+rX "$TF_PLUGIN_CACHE_DIR"; \
     rm -rf /tmp/tf-cache-seed
 
