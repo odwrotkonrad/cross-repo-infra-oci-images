@@ -7,6 +7,7 @@ workflow:
 
 stages:
   - build-image
+  - build-image-dind
   - validate
   - release
   - trigger-image
@@ -63,6 +64,7 @@ build-ci-linux-image:
 
 build-ci-linux-dind-image:
   extends: .build-image
+  stage: build-image-dind
   needs: [build-ci-linux-image]
   rules:
     - if: $CI_MERGE_REQUEST_DRAFT == "true"
