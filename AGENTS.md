@@ -70,6 +70,7 @@ assets
   docs-agents
 ci
   ci-linux
+  ci-linux-dind
   zsh
     scripts
 templates
