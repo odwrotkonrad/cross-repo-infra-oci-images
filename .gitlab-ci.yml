@@ -7,7 +7,6 @@ workflow:
 
 stages:
   - build-image
-  - manifest-image
   - validate
   - release
   - trigger-image
@@ -17,7 +16,7 @@ variables:
   CI_LINUX_DIND_IMAGE: $CI_REGISTRY_IMAGE/ci-linux-dind
   CHE_VALIDATE_SPEC: error
 
-#[why] one native build job per arch (qemu-emulated arm64 in one multi-arch build doubles the wall clock) building both targets of the multi-stage Dockerfile, each pushing only <sha>-<arch> tags; the manifest job then assembles the shared multi-arch tags. MR pipelines export registry cache only (no tags pushed)
+#[why] one multi-arch buildx build per image (arm64 qemu-emulated via binfmt), pushing the multi-arch manifest tags directly; the dind image is a target of the same Dockerfile and builds after the base so its registry cache is warm. MR pipelines export registry cache only (no tags pushed)
 .build-image:
   stage: build-image
   image: docker:27-cli
@@ -32,6 +31,7 @@ variables:
     - echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin "$CI_REGISTRY"
     - docker context create dind --docker "host=$DOCKER_HOST,ca=$DOCKER_CERT_PATH/ca.pem,cert=$DOCKER_CERT_PATH/cert.pem,key=$DOCKER_CERT_PATH/key.pem"
     - docker buildx create --use --driver docker-container dind
+    - docker run --privileged --rm tonistiigi/binfmt --install arm64
     #[why] on a tag pipeline publish the immutable :vX.Y.Z consumers pin; else re-tag :latest as the version slot (harmless no-op)
     - VERSION_TAG="${CI_COMMIT_TAG:-latest}"
     #[why] etag of the latest che tarball -> CHE_REF build-arg: busts the Dockerfile che layer only when che re-published (unchanged che keeps the cached layer). wget not curl: the docker:27-cli job image is alpine/busybox (no curl)
@@ -39,7 +39,7 @@ variables:
     #[why] MR builds warm the shared registry cache only; tags publish from tag/main pipelines
     - if [ "$CI_PIPELINE_SOURCE" = "merge_request_event" ]; then OUTPUT_ARGS="--output type=cacheonly"; else OUTPUT_ARGS="--push"; fi
 
-build-ci-linux-image-amd64:
+build-ci-linux-image:
   extends: .build-image
   needs: []
   rules:
@@ -50,83 +50,39 @@ build-ci-linux-image-amd64:
     - docker buildx build
         --file "$CI_PROJECT_DIR/ci/ci-linux/Dockerfile"
         --target ci-linux
-        --platform linux/amd64
+        --platform linux/amd64,linux/arm64
         --build-arg "CHE_REF=$CHE_REF"
-        --tag "$CI_LINUX_IMAGE:$CI_COMMIT_SHORT_SHA-amd64"
+        --tag "$CI_LINUX_IMAGE:$VERSION_TAG"
+        --tag "$CI_LINUX_IMAGE:latest"
+        --tag "$CI_LINUX_IMAGE:latest-arm64"
+        --tag "$CI_LINUX_IMAGE:$CI_COMMIT_SHORT_SHA"
         --cache-from "type=registry,ref=$CI_LINUX_IMAGE-cache"
         --cache-to "type=registry,ref=$CI_LINUX_IMAGE-cache,mode=max"
         $OUTPUT_ARGS
         "$CI_PROJECT_DIR"
-    #[why] same builder, same layers: the dind target adds one cached docker-CLI layer on top
+
+build-ci-linux-dind-image:
+  extends: .build-image
+  needs: [build-ci-linux-image]
+  rules:
+    - if: $CI_MERGE_REQUEST_DRAFT == "true"
+      when: never
+    - when: on_success
+  script:
     - docker buildx build
         --file "$CI_PROJECT_DIR/ci/ci-linux/Dockerfile"
         --target ci-linux-dind
-        --platform linux/amd64
+        --platform linux/amd64,linux/arm64
         --build-arg "CHE_REF=$CHE_REF"
-        --tag "$CI_LINUX_DIND_IMAGE:$CI_COMMIT_SHORT_SHA-amd64"
+        --tag "$CI_LINUX_DIND_IMAGE:$VERSION_TAG"
+        --tag "$CI_LINUX_DIND_IMAGE:latest"
+        --tag "$CI_LINUX_DIND_IMAGE:latest-arm64"
+        --tag "$CI_LINUX_DIND_IMAGE:$CI_COMMIT_SHORT_SHA"
         --cache-from "type=registry,ref=$CI_LINUX_IMAGE-cache"
         --cache-from "type=registry,ref=$CI_LINUX_DIND_IMAGE-cache"
         --cache-to "type=registry,ref=$CI_LINUX_DIND_IMAGE-cache,mode=max"
         $OUTPUT_ARGS
         "$CI_PROJECT_DIR"
-
-build-ci-linux-image-arm64:
-  extends: .build-image
-  tags:
-    - saas-linux-small-arm64
-  needs: []
-  rules:
-    - if: $CI_MERGE_REQUEST_DRAFT == "true"
-      when: never
-    - when: on_success
-  script:
-    - docker buildx build
-        --file "$CI_PROJECT_DIR/ci/ci-linux/Dockerfile"
-        --target ci-linux
-        --platform linux/arm64
-        --build-arg "CHE_REF=$CHE_REF"
-        --tag "$CI_LINUX_IMAGE:$CI_COMMIT_SHORT_SHA-arm64"
-        --cache-from "type=registry,ref=$CI_LINUX_IMAGE-cache-arm64"
-        --cache-to "type=registry,ref=$CI_LINUX_IMAGE-cache-arm64,mode=max"
-        $OUTPUT_ARGS
-        "$CI_PROJECT_DIR"
-    - docker buildx build
-        --file "$CI_PROJECT_DIR/ci/ci-linux/Dockerfile"
-        --target ci-linux-dind
-        --platform linux/arm64
-        --build-arg "CHE_REF=$CHE_REF"
-        --tag "$CI_LINUX_DIND_IMAGE:$CI_COMMIT_SHORT_SHA-arm64"
-        --cache-from "type=registry,ref=$CI_LINUX_IMAGE-cache-arm64"
-        --cache-from "type=registry,ref=$CI_LINUX_DIND_IMAGE-cache-arm64"
-        --cache-to "type=registry,ref=$CI_LINUX_DIND_IMAGE-cache-arm64,mode=max"
-        $OUTPUT_ARGS
-        "$CI_PROJECT_DIR"
-
-#[what] assemble the shared multi-arch tags from the per-arch <sha>-<arch> pushes (registry-side, no daemon)
-#[why] the legacy latest-arm64 alias stays refreshed so consumers pinned to it keep working through the transition
-.manifest-image:
-  stage: manifest-image
-  image: docker:27-cli
-  rules:
-    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
-      when: never
-    - when: on_success
-  before_script:
-    - echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin "$CI_REGISTRY"
-    - VERSION_TAG="${CI_COMMIT_TAG:-latest}"
-
-manifest-images:
-  extends: .manifest-image
-  needs: [build-ci-linux-image-amd64, build-ci-linux-image-arm64]
-  script:
-    - docker buildx imagetools create
-        -t "$CI_LINUX_IMAGE:latest" -t "$CI_LINUX_IMAGE:$VERSION_TAG" -t "$CI_LINUX_IMAGE:$CI_COMMIT_SHORT_SHA"
-        "$CI_LINUX_IMAGE:$CI_COMMIT_SHORT_SHA-amd64" "$CI_LINUX_IMAGE:$CI_COMMIT_SHORT_SHA-arm64"
-    - docker buildx imagetools create -t "$CI_LINUX_IMAGE:latest-arm64" "$CI_LINUX_IMAGE:$CI_COMMIT_SHORT_SHA-arm64"
-    - docker buildx imagetools create
-        -t "$CI_LINUX_DIND_IMAGE:latest" -t "$CI_LINUX_DIND_IMAGE:$VERSION_TAG" -t "$CI_LINUX_DIND_IMAGE:$CI_COMMIT_SHORT_SHA"
-        "$CI_LINUX_DIND_IMAGE:$CI_COMMIT_SHORT_SHA-amd64" "$CI_LINUX_DIND_IMAGE:$CI_COMMIT_SHORT_SHA-arm64"
-    - docker buildx imagetools create -t "$CI_LINUX_DIND_IMAGE:latest-arm64" "$CI_LINUX_DIND_IMAGE:$CI_COMMIT_SHORT_SHA-arm64"
 
 #[why] self-bootstrapping: this repo's own image may not exist yet (chicken/egg), so bootstrap from a minimal debian and fetch the same prebuilt che/lefthook the image bakes (no slow CGO compile of che)
 validate-pre-commit-all:

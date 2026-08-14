@@ -11,9 +11,9 @@ Shared OCI CI base images for the `konradodwrot` repos: `ci-linux`, a
 `debian:bookworm-slim` base baking the common CI toolchain (go, che,
 render-tpl, lefthook, yq, zsh, clang, make, git, zig, goreleaser,
 golangci-lint, terraform, glab), and `ci-linux-dind`, ci-linux plus the static
-docker CLI for docker-in-docker jobs. Each arch builds natively (no qemu),
-then a manifest job assembles one multi-arch tag, built by Docker buildx and
-published to this project's container registry. A che release (go-modules main) triggers a rebuild here
+docker CLI for docker-in-docker jobs. Each image builds once as a
+multi-arch manifest (amd64 native, arm64 qemu-emulated) by Docker buildx and
+is published to this project's container registry. A che release (go-modules main) triggers a rebuild here
 and chains onward to the `restricted/sandbox` image, which owns its own bake.
 
 ### Why It Exists
@@ -27,7 +27,7 @@ a cached image pull.
 ### Goals
 
 - One shared, versioned CI base image every repo pulls.
-- Multi-arch tags: native per-arch builds assembled into one manifest, MR pipelines warm the build cache, tag/main pipelines publish.
+- Multi-arch tags: one buildx build per image covers both arches, MR pipelines warm the build cache, tag/main pipelines publish.
 - Single source of truth for CI tool versions (`ci/tool-versions.env`).
 - Public-pullable, so cross-project pulls need no auth.
 - Fast pipelines: no per-job compile of che, no per-job tool downloads.
