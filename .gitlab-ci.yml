@@ -17,7 +17,7 @@ variables:
   CI_LINUX_DIND_IMAGE: $CI_REGISTRY_IMAGE/ci-linux-dind
   CHE_VALIDATE_SPEC: error
 
-#[why] one native build job per arch (qemu-emulated arm64 in one multi-arch build doubles the wall clock), each pushing only its <sha>-<arch> tag; a manifest job then assembles the shared multi-arch tags. MR pipelines export registry cache only (no tags pushed)
+#[why] one native build job per arch (qemu-emulated arm64 in one multi-arch build doubles the wall clock) building both targets of the multi-stage Dockerfile, each pushing only <sha>-<arch> tags; the manifest job then assembles the shared multi-arch tags. MR pipelines export registry cache only (no tags pushed)
 .build-image:
   stage: build-image
   image: docker:27-cli
@@ -49,11 +49,24 @@ build-ci-linux-image-amd64:
   script:
     - docker buildx build
         --file "$CI_PROJECT_DIR/ci/ci-linux/Dockerfile"
+        --target ci-linux
         --platform linux/amd64
         --build-arg "CHE_REF=$CHE_REF"
         --tag "$CI_LINUX_IMAGE:$CI_COMMIT_SHORT_SHA-amd64"
         --cache-from "type=registry,ref=$CI_LINUX_IMAGE-cache"
         --cache-to "type=registry,ref=$CI_LINUX_IMAGE-cache,mode=max"
+        $OUTPUT_ARGS
+        "$CI_PROJECT_DIR"
+    #[why] same builder, same layers: the dind target adds one cached docker-CLI layer on top
+    - docker buildx build
+        --file "$CI_PROJECT_DIR/ci/ci-linux/Dockerfile"
+        --target ci-linux-dind
+        --platform linux/amd64
+        --build-arg "CHE_REF=$CHE_REF"
+        --tag "$CI_LINUX_DIND_IMAGE:$CI_COMMIT_SHORT_SHA-amd64"
+        --cache-from "type=registry,ref=$CI_LINUX_IMAGE-cache"
+        --cache-from "type=registry,ref=$CI_LINUX_DIND_IMAGE-cache"
+        --cache-to "type=registry,ref=$CI_LINUX_DIND_IMAGE-cache,mode=max"
         $OUTPUT_ARGS
         "$CI_PROJECT_DIR"
 
@@ -69,6 +82,7 @@ build-ci-linux-image-arm64:
   script:
     - docker buildx build
         --file "$CI_PROJECT_DIR/ci/ci-linux/Dockerfile"
+        --target ci-linux
         --platform linux/arm64
         --build-arg "CHE_REF=$CHE_REF"
         --tag "$CI_LINUX_IMAGE:$CI_COMMIT_SHORT_SHA-arm64"
@@ -76,43 +90,13 @@ build-ci-linux-image-arm64:
         --cache-to "type=registry,ref=$CI_LINUX_IMAGE-cache-arm64,mode=max"
         $OUTPUT_ARGS
         "$CI_PROJECT_DIR"
-
-#[why] FROM the ci-linux tag this pipeline just built (needs orders it); MR pipelines push no tags so they layer over the published :latest, cache-only
-build-ci-linux-dind-image-amd64:
-  extends: .build-image
-  needs: [build-ci-linux-image-amd64]
-  rules:
-    - if: $CI_MERGE_REQUEST_DRAFT == "true"
-      when: never
-    - when: on_success
-  script:
-    - if [ "$CI_PIPELINE_SOURCE" = "merge_request_event" ]; then BASE="$CI_LINUX_IMAGE:latest"; else BASE="$CI_LINUX_IMAGE:$CI_COMMIT_SHORT_SHA-amd64"; fi
     - docker buildx build
-        --file "$CI_PROJECT_DIR/ci/ci-linux-dind/Dockerfile"
-        --platform linux/amd64
-        --build-arg "BASE=$BASE"
-        --tag "$CI_LINUX_DIND_IMAGE:$CI_COMMIT_SHORT_SHA-amd64"
-        --cache-from "type=registry,ref=$CI_LINUX_DIND_IMAGE-cache"
-        --cache-to "type=registry,ref=$CI_LINUX_DIND_IMAGE-cache,mode=max"
-        $OUTPUT_ARGS
-        "$CI_PROJECT_DIR"
-
-build-ci-linux-dind-image-arm64:
-  extends: .build-image
-  tags:
-    - saas-linux-small-arm64
-  needs: [build-ci-linux-image-arm64]
-  rules:
-    - if: $CI_MERGE_REQUEST_DRAFT == "true"
-      when: never
-    - when: on_success
-  script:
-    - if [ "$CI_PIPELINE_SOURCE" = "merge_request_event" ]; then BASE="$CI_LINUX_IMAGE:latest-arm64"; else BASE="$CI_LINUX_IMAGE:$CI_COMMIT_SHORT_SHA-arm64"; fi
-    - docker buildx build
-        --file "$CI_PROJECT_DIR/ci/ci-linux-dind/Dockerfile"
+        --file "$CI_PROJECT_DIR/ci/ci-linux/Dockerfile"
+        --target ci-linux-dind
         --platform linux/arm64
-        --build-arg "BASE=$BASE"
+        --build-arg "CHE_REF=$CHE_REF"
         --tag "$CI_LINUX_DIND_IMAGE:$CI_COMMIT_SHORT_SHA-arm64"
+        --cache-from "type=registry,ref=$CI_LINUX_IMAGE-cache-arm64"
         --cache-from "type=registry,ref=$CI_LINUX_DIND_IMAGE-cache-arm64"
         --cache-to "type=registry,ref=$CI_LINUX_DIND_IMAGE-cache-arm64,mode=max"
         $OUTPUT_ARGS
@@ -131,7 +115,7 @@ build-ci-linux-dind-image-arm64:
     - echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin "$CI_REGISTRY"
     - VERSION_TAG="${CI_COMMIT_TAG:-latest}"
 
-manifest-ci-linux-image:
+manifest-images:
   extends: .manifest-image
   needs: [build-ci-linux-image-amd64, build-ci-linux-image-arm64]
   script:
@@ -139,11 +123,6 @@ manifest-ci-linux-image:
         -t "$CI_LINUX_IMAGE:latest" -t "$CI_LINUX_IMAGE:$VERSION_TAG" -t "$CI_LINUX_IMAGE:$CI_COMMIT_SHORT_SHA"
         "$CI_LINUX_IMAGE:$CI_COMMIT_SHORT_SHA-amd64" "$CI_LINUX_IMAGE:$CI_COMMIT_SHORT_SHA-arm64"
     - docker buildx imagetools create -t "$CI_LINUX_IMAGE:latest-arm64" "$CI_LINUX_IMAGE:$CI_COMMIT_SHORT_SHA-arm64"
-
-manifest-ci-linux-dind-image:
-  extends: .manifest-image
-  needs: [build-ci-linux-dind-image-amd64, build-ci-linux-dind-image-arm64]
-  script:
     - docker buildx imagetools create
         -t "$CI_LINUX_DIND_IMAGE:latest" -t "$CI_LINUX_DIND_IMAGE:$VERSION_TAG" -t "$CI_LINUX_DIND_IMAGE:$CI_COMMIT_SHORT_SHA"
         "$CI_LINUX_DIND_IMAGE:$CI_COMMIT_SHORT_SHA-amd64" "$CI_LINUX_DIND_IMAGE:$CI_COMMIT_SHORT_SHA-arm64"

@@ -14,6 +14,7 @@ typeset che_ref=$(curl --connect-timeout 30 --retry 10 --retry-delay 30 -fsSI "h
 
 docker build \
   --file $repo_root/ci/ci-linux/Dockerfile \
+  --target ci-linux \
   --build-arg CHE_REF=$che_ref \
   --tag ci-linux:local \
   $repo_root
