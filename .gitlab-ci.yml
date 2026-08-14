@@ -6,9 +6,9 @@ workflow:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
 
 stages:
+  - validate
   - build-image
   - build-image-dind
-  - validate
   - release
   - trigger-image
 
