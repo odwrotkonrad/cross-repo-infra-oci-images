@@ -52,6 +52,7 @@ build-ci-linux-image:
         --file "$CI_PROJECT_DIR/ci/ci-linux/Dockerfile"
         --target ci-linux
         --platform linux/amd64,linux/arm64
+        --provenance=false
         --build-arg "CHE_REF=$CHE_REF"
         --tag "$CI_LINUX_IMAGE:$VERSION_TAG"
         --tag "$CI_LINUX_IMAGE:latest"
@@ -75,6 +76,7 @@ build-ci-linux-dind-image:
         --file "$CI_PROJECT_DIR/ci/ci-linux/Dockerfile"
         --target ci-linux-dind
         --platform linux/amd64,linux/arm64
+        --provenance=false
         --build-arg "CHE_REF=$CHE_REF"
         --tag "$CI_LINUX_DIND_IMAGE:$VERSION_TAG"
         --tag "$CI_LINUX_DIND_IMAGE:latest"

@@ -2,28 +2,27 @@
 
 ## What It Is
 
-Shared OCI CI base images for the `konradodwrot` repos: `ci-linux`, a
-`debian:bookworm-slim` base baking the common CI toolchain (go, che,
-render-tpl, lefthook, yq, zsh, clang, make, git, zig, goreleaser,
-golangci-lint, terraform, glab), and `ci-linux-dind`, ci-linux plus the static
-docker CLI for docker-in-docker jobs. Each image builds once as a
-multi-arch manifest (amd64 native, arm64 qemu-emulated) by Docker buildx and
-is published to this project's container registry. A che release (go-modules main) triggers a rebuild here
-and chains onward to the `restricted/sandbox` image, which owns its own bake.
+CI base images for the `konradodwrot` repos: `ci-linux`,
+`debian:bookworm-slim` plus the shared CI toolchain (go, che, render-tpl,
+lefthook, yq, zsh, clang, make, git, zig, goreleaser, golangci-lint,
+terraform, glab), and `ci-linux-dind`, ci-linux plus the static docker CLI for
+docker-in-docker jobs. Docker buildx builds each image once as a multi-arch
+manifest (amd64 native, arm64 qemu-emulated) and pushes it to this project's
+container registry. A che release (go-modules main) rebuilds here, then chains
+to the `restricted/sandbox` image, which owns its own bake.
 
 ## Why It Exists
 
-Every repo's CI repeated the same expensive bootstrap: pull a golang base,
-`apt-get` clang/make/zsh, then `go install che@latest` + `lefthook@latest`.
-Compiling che from source (1Password CGO SDK + tree-sitter) cost ~4–5 min per
-pipeline, per repo, every run. Baking the toolchain once here drops that toil to
-a cached image pull.
+Every repo's CI ran the same bootstrap: pull a golang base, `apt-get`
+clang/make/zsh, `go install che@latest` and `lefthook@latest`. Compiling che
+(1Password CGO SDK, tree-sitter) cost ~4–5 min per pipeline, every run. Baking
+the toolchain once turns that into a cached image pull.
 
 ## Goals
 
-- One shared, versioned CI base image every repo pulls.
-- Multi-arch tags: one buildx build per image covers both arches, MR pipelines warm the build cache, tag/main pipelines publish.
-- Single source of truth for CI tool versions (`ci/tool-versions.env`).
-- Public-pullable, so cross-project pulls need no auth.
-- Fast pipelines: no per-job compile of che, no per-job tool downloads.
-- Che releases propagate: rebuild here, then trigger the sandbox image re-bake.
+- One shared, versioned CI base image for every repo.
+- Multi-arch tags: one buildx build per image covers both arches, MR pipelines warm the cache, tag/main pipelines publish.
+- Tool versions pinned in one place: `ci/tool-versions.env`.
+- Public-pullable: cross-project pulls need no auth.
+- No per-job che compile, no per-job tool downloads.
+- Che releases propagate: rebuild here, re-bake the sandbox image.
