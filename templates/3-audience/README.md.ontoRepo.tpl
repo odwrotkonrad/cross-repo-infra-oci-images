@@ -6,18 +6,18 @@ Shared OCI container images for the `konradodwrot` repos.
 
 ## Images
 
-The image builds per arch, one CI job each: amd64 owns the bare tags
-(`:vX.Y.Z` immutable release consumers pin, `:latest` moving,
-`:$CI_COMMIT_SHORT_SHA` immutable), arm64 publishes the same set with an
-`-arm64` suffix. The amd64 build is automatic; arm64 is a manual pipeline job
-(qemu-emulated arm64 builds are slow).
+Each image builds in one buildx job as a multi-arch manifest: amd64 native,
+arm64 qemu-emulated (binfmt). Tags: `:vX.Y.Z` immutable, pinned by consumers
+(published by the tag pipeline), `:latest` moving, `:$CI_COMMIT_SHORT_SHA`
+immutable, `:latest-arm64` an alias of the same manifest. Non-draft MR
+pipelines build cache-only, tag/main pipelines push.
 
 ### ci-linux
 
 `registry.gitlab.com/konradodwrot/infra/oci-images/ci-linux:latest`
 
-`FROM debian:bookworm-slim`, baking the shared CI toolchain so consuming jobs
-skip the per-pipeline `apt-get` + `go install` + `curl` bootstrap:
+`FROM debian:bookworm-slim` plus the shared CI toolchain, so jobs skip the
+per-pipeline `apt-get` + `go install` + `curl` bootstrap:
 
 | Tool | Purpose |
 | ---- | ------- |
@@ -28,8 +28,17 @@ skip the per-pipeline `apt-get` + `go install` + `curl` bootstrap:
 | yq | YAML query |
 | zig | linux cross-compile backend (goreleaser) |
 | goreleaser | go release builds |
-| terraform | IaC (infra/git-repos) |
+| terraform | IaC, plugin cache pre-seeded |
 | glab | GitLab CLI |
+| op | 1Password CLI (terraform onepassword provider shells out to it) |
+
+### ci-linux-dind
+
+`registry.gitlab.com/konradodwrot/infra/oci-images/ci-linux-dind:latest`
+
+ci-linux plus the static docker CLI (no daemon: jobs use the `docker:dind`
+service). A second target of the same Dockerfile, built after the base so its
+registry cache is warm.
 
 ## Consume
 
@@ -43,22 +52,20 @@ validate-pre-commit-all:
     - make repo-ci-precommit-all
 ```
 
-The images are public-pullable (public repo), so cross-project pulls need no auth.
-
 ## Versions
 
-Tool pins live in one place: `ci/tool-versions.env`. Bump there; the file is
-`COPY`-ed into the build and sourced per `RUN` in `ci/ci-linux/Dockerfile`. This is the
-single source of truth for CI-image tool versions (host provisioning still lives in
-`configs/ci/zsh/scripts/installs/00-ci-deps.zsh`).
+Tool pins live in `ci/tool-versions.env`: bump there. The build `COPY`s it in
+and sources it per `RUN` in `ci/ci-linux/Dockerfile`. Host provisioning lives
+separately, in `configs/ci/zsh/scripts/installs/00-ci-deps.zsh`.
 
 ## Build
 
-CI builds the image with Docker buildx on changes to the Dockerfile /
-`ci/tool-versions.env`, on `main`, or manually. A `main` pipeline (and a che
-release arriving via `BUILD_ALL_IMAGES`) also triggers the
-`restricted/sandbox` image re-bake. See `.gitlab-ci.yml`.
+CI builds both images on every non-draft MR (cache-only), `main`, and tag
+pipeline. `main` auto-creates the next `vX.Y.Z` release, and its tag pipeline
+publishes the pinned tag. A `main` pipeline (or a che release via
+`BUILD_ALL_IMAGES`) also triggers the `restricted/sandbox` re-bake. See
+`.gitlab-ci.yml`.
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+MIT: see [LICENSE](LICENSE).

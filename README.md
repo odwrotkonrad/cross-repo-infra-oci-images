@@ -7,46 +7,45 @@ Shared OCI container images for the `konradodwrot` repos.
 
 ### What It Is
 
-Shared OCI CI base images for the `konradodwrot` repos: `ci-linux`, a
-`debian:bookworm-slim` base baking the common CI toolchain (go, che,
-render-tpl, lefthook, yq, zsh, clang, make, git, zig, goreleaser,
-golangci-lint, terraform, glab), and `ci-linux-dind`, ci-linux plus the static
-docker CLI for docker-in-docker jobs. Each image builds once as a
-multi-arch manifest (amd64 native, arm64 qemu-emulated) by Docker buildx and
-is published to this project's container registry. A che release (go-modules main) triggers a rebuild here
-and chains onward to the `restricted/sandbox` image, which owns its own bake.
+Two CI base images for the `konradodwrot` repos, each built by Docker buildx
+as one multi-arch manifest (amd64 native, arm64 qemu-emulated) and pushed to
+this project's container registry. `ci-linux`: `debian:bookworm-slim` plus the
+shared CI toolchain (go, che, render-tpl, lefthook, yq, zsh, clang, make, git,
+zig, goreleaser, golangci-lint, terraform, glab, op). `ci-linux-dind`: ci-linux
+plus the static docker CLI for docker-in-docker jobs. A che release
+(go-modules main) rebuilds here, then chains to the `restricted/sandbox`
+image, which owns its own bake.
 
 ### Why It Exists
 
-Every repo's CI repeated the same expensive bootstrap: pull a golang base,
-`apt-get` clang/make/zsh, then `go install che@latest` + `lefthook@latest`.
-Compiling che from source (1Password CGO SDK + tree-sitter) cost ~4–5 min per
-pipeline, per repo, every run. Baking the toolchain once here drops that toil to
-a cached image pull.
+Every repo's CI ran the same bootstrap: pull a golang base, `apt-get`
+clang/make/zsh, `go install che@latest` and `lefthook@latest`. Compiling che
+(1Password CGO SDK, tree-sitter) cost ~4–5 min per pipeline. Baking the
+toolchain once turns that into a cached image pull.
 
 ### Goals
 
 - One shared, versioned CI base image every repo pulls.
-- Multi-arch tags: one buildx build per image covers both arches, MR pipelines warm the build cache, tag/main pipelines publish.
-- Single source of truth for CI tool versions (`ci/tool-versions.env`).
-- Public-pullable, so cross-project pulls need no auth.
-- Fast pipelines: no per-job compile of che, no per-job tool downloads.
-- Che releases propagate: rebuild here, then trigger the sandbox image re-bake.
+- Multi-arch tags: one buildx build per image, MR pipelines warm the cache, tag/main pipelines publish.
+- Tool versions pinned in one place: `ci/tool-versions.env`.
+- Public-pullable: cross-project pulls need no auth.
+- No per-job che compile, no per-job tool downloads.
+- Che releases propagate: rebuild here, re-bake the sandbox image.
 
 ## Images
 
-The image builds per arch, one CI job each: amd64 owns the bare tags
-(`:vX.Y.Z` immutable release consumers pin, `:latest` moving,
-`:$CI_COMMIT_SHORT_SHA` immutable), arm64 publishes the same set with an
-`-arm64` suffix. The amd64 build is automatic; arm64 is a manual pipeline job
-(qemu-emulated arm64 builds are slow).
+Each image builds in one buildx job as a multi-arch manifest: amd64 native,
+arm64 qemu-emulated (binfmt). Tags: `:vX.Y.Z` immutable, pinned by consumers
+(published by the tag pipeline), `:latest` moving, `:$CI_COMMIT_SHORT_SHA`
+immutable, `:latest-arm64` an alias of the same manifest. Non-draft MR
+pipelines build cache-only, tag/main pipelines push.
 
 ### ci-linux
 
 `registry.gitlab.com/konradodwrot/infra/oci-images/ci-linux:latest`
 
-`FROM debian:bookworm-slim`, baking the shared CI toolchain so consuming jobs
-skip the per-pipeline `apt-get` + `go install` + `curl` bootstrap:
+`FROM debian:bookworm-slim` plus the shared CI toolchain, so jobs skip the
+per-pipeline `apt-get` + `go install` + `curl` bootstrap:
 
 | Tool | Purpose |
 | ---- | ------- |
@@ -57,8 +56,17 @@ skip the per-pipeline `apt-get` + `go install` + `curl` bootstrap:
 | yq | YAML query |
 | zig | linux cross-compile backend (goreleaser) |
 | goreleaser | go release builds |
-| terraform | IaC (infra/git-repos) |
+| terraform | IaC, plugin cache pre-seeded |
 | glab | GitLab CLI |
+| op | 1Password CLI (terraform onepassword provider shells out to it) |
+
+### ci-linux-dind
+
+`registry.gitlab.com/konradodwrot/infra/oci-images/ci-linux-dind:latest`
+
+ci-linux plus the static docker CLI (no daemon: jobs use the `docker:dind`
+service). A second target of the same Dockerfile, built after the base so its
+registry cache is warm.
 
 ## Consume
 
@@ -72,22 +80,20 @@ validate-pre-commit-all:
     - make repo-ci-precommit-all
 ```
 
-The images are public-pullable (public repo), so cross-project pulls need no auth.
-
 ## Versions
 
-Tool pins live in one place: `ci/tool-versions.env`. Bump there; the file is
-`COPY`-ed into the build and sourced per `RUN` in `ci/ci-linux/Dockerfile`. This is the
-single source of truth for CI-image tool versions (host provisioning still lives in
-`configs/ci/zsh/scripts/installs/00-ci-deps.zsh`).
+Tool pins live in `ci/tool-versions.env`: bump there. The build `COPY`s it in
+and sources it per `RUN` in `ci/ci-linux/Dockerfile`. Host provisioning lives
+separately, in `configs/ci/zsh/scripts/installs/00-ci-deps.zsh`.
 
 ## Build
 
-CI builds the image with Docker buildx on changes to the Dockerfile /
-`ci/tool-versions.env`, on `main`, or manually. A `main` pipeline (and a che
-release arriving via `BUILD_ALL_IMAGES`) also triggers the
-`restricted/sandbox` image re-bake. See `.gitlab-ci.yml`.
+CI builds both images on every non-draft MR (cache-only), `main`, and tag
+pipeline. `main` auto-creates the next `vX.Y.Z` release, and its tag pipeline
+publishes the pinned tag. A `main` pipeline (or a che release via
+`BUILD_ALL_IMAGES`) also triggers the `restricted/sandbox` re-bake. See
+`.gitlab-ci.yml`.
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+MIT: see [LICENSE](LICENSE).
