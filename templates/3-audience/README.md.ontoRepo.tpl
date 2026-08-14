@@ -6,10 +6,11 @@ Shared OCI container images for the `konradodwrot` repos.
 
 ## Images
 
-Each arch builds in its own CI job: amd64 owns the bare tags (`:vX.Y.Z`
-immutable, pinned by consumers, `:latest` moving, `:$CI_COMMIT_SHORT_SHA`
-immutable), arm64 publishes the same set suffixed `-arm64`. amd64 runs
-automatically, arm64 is a manual job (qemu-emulated builds are slow).
+Each image builds in one buildx job as a multi-arch manifest: amd64 native,
+arm64 qemu-emulated (binfmt). Tags: `:vX.Y.Z` immutable, pinned by consumers
+(published by the tag pipeline), `:latest` moving, `:$CI_COMMIT_SHORT_SHA`
+immutable, `:latest-arm64` an alias of the same manifest. Non-draft MR
+pipelines build cache-only, tag/main pipelines push.
 
 ### ci-linux
 
@@ -27,8 +28,17 @@ per-pipeline `apt-get` + `go install` + `curl` bootstrap:
 | yq | YAML query |
 | zig | linux cross-compile backend (goreleaser) |
 | goreleaser | go release builds |
-| terraform | IaC (infra/git-repos) |
+| terraform | IaC, plugin cache pre-seeded |
 | glab | GitLab CLI |
+| op | 1Password CLI (terraform onepassword provider shells out to it) |
+
+### ci-linux-dind
+
+`registry.gitlab.com/konradodwrot/infra/oci-images/ci-linux-dind:latest`
+
+ci-linux plus the static docker CLI (no daemon: jobs use the `docker:dind`
+service). A second target of the same Dockerfile, built after the base so its
+registry cache is warm.
 
 ## Consume
 
@@ -44,15 +54,15 @@ validate-pre-commit-all:
 
 ## Versions
 
-Tool pins live in `ci/tool-versions.env`: bump there. The build `COPY`s the
-file in and sources it per `RUN` in `ci/ci-linux/Dockerfile`. Host
-provisioning lives separately, in
-`configs/ci/zsh/scripts/installs/00-ci-deps.zsh`.
+Tool pins live in `ci/tool-versions.env`: bump there. The build `COPY`s it in
+and sources it per `RUN` in `ci/ci-linux/Dockerfile`. Host provisioning lives
+separately, in `configs/ci/zsh/scripts/installs/00-ci-deps.zsh`.
 
 ## Build
 
-CI builds with Docker buildx on Dockerfile or `ci/tool-versions.env` changes,
-on `main`, or manually. A `main` pipeline (or a che release via
+CI builds both images on every non-draft MR (cache-only), `main`, and tag
+pipeline. `main` auto-creates the next `vX.Y.Z` release, and its tag pipeline
+publishes the pinned tag. A `main` pipeline (or a che release via
 `BUILD_ALL_IMAGES`) also triggers the `restricted/sandbox` re-bake. See
 `.gitlab-ci.yml`.
 

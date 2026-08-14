@@ -2,26 +2,26 @@
 
 ## What It Is
 
-CI base images for the `konradodwrot` repos: `ci-linux`,
-`debian:bookworm-slim` plus the shared CI toolchain (go, che, render-tpl,
-lefthook, yq, zsh, clang, make, git, zig, goreleaser, golangci-lint,
-terraform, glab), and `ci-linux-dind`, ci-linux plus the static docker CLI for
-docker-in-docker jobs. Docker buildx builds each image once as a multi-arch
-manifest (amd64 native, arm64 qemu-emulated) and pushes it to this project's
-container registry. A che release (go-modules main) rebuilds here, then chains
-to the `restricted/sandbox` image, which owns its own bake.
+Two CI base images for the `konradodwrot` repos, each built by Docker buildx
+as one multi-arch manifest (amd64 native, arm64 qemu-emulated) and pushed to
+this project's container registry. `ci-linux`: `debian:bookworm-slim` plus the
+shared CI toolchain (go, che, render-tpl, lefthook, yq, zsh, clang, make, git,
+zig, goreleaser, golangci-lint, terraform, glab, op). `ci-linux-dind`: ci-linux
+plus the static docker CLI for docker-in-docker jobs. A che release
+(go-modules main) rebuilds here, then chains to the `restricted/sandbox`
+image, which owns its own bake.
 
 ## Why It Exists
 
 Every repo's CI ran the same bootstrap: pull a golang base, `apt-get`
 clang/make/zsh, `go install che@latest` and `lefthook@latest`. Compiling che
-(1Password CGO SDK, tree-sitter) cost ~4–5 min per pipeline, every run. Baking
-the toolchain once turns that into a cached image pull.
+(1Password CGO SDK, tree-sitter) cost ~4–5 min per pipeline. Baking the
+toolchain once turns that into a cached image pull.
 
 ## Goals
 
-- One shared, versioned CI base image for every repo.
-- Multi-arch tags: one buildx build per image covers both arches, MR pipelines warm the cache, tag/main pipelines publish.
+- One shared, versioned CI base image every repo pulls.
+- Multi-arch tags: one buildx build per image, MR pipelines warm the cache, tag/main pipelines publish.
 - Tool versions pinned in one place: `ci/tool-versions.env`.
 - Public-pullable: cross-project pulls need no auth.
 - No per-job che compile, no per-job tool downloads.
