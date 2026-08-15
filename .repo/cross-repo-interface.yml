@@ -7,9 +7,9 @@ upstream:
   - configs/llm/claude
   - infra/iac/tf-lock
   - infra/oci-images/ci-linux
-  - {consumes: go-modules/che, into: ci-linux}
-  - {consumes: go-modules/che, into: dev-sandbox}
-  - {consumes: configs/zsh/base-linux, into: dev-sandbox}
+edges:
+  go-modules/che: [ci-linux, dev-sandbox]
+  configs/zsh/base-linux: [dev-sandbox]
 downstream:
   - {name: ci-linux, type: oci-image}
   - {name: ci-linux-dind, type: oci-image}
