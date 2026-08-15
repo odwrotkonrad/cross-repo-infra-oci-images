@@ -2,14 +2,13 @@
 
 ## What It Is
 
-Two CI base images for the `konradodwrot` repos, each built by Docker buildx
-as one multi-arch manifest (amd64 native, arm64 qemu-emulated) and pushed to
-this project's container registry. `ci-linux`: `debian:bookworm-slim` plus the
-shared CI toolchain (go, che, render-tpl, lefthook, yq, zsh, clang, make, git,
-zig, goreleaser, golangci-lint, terraform, glab, op). `ci-linux-dind`: ci-linux
-plus the static docker CLI for docker-in-docker jobs. A che release
-(go-modules main) rebuilds here, then chains to the `restricted/sandbox`
-image, which owns its own bake.
+Two CI base images for the `konradodwrot` repos, each one multi-arch buildx
+manifest (amd64 native, arm64 qemu-emulated) in this project's container
+registry. `ci-linux`: `debian:bookworm-slim` plus the shared CI toolchain (go,
+che, render-tpl, lefthook, yq, zsh, clang, make, git, zig, goreleaser,
+golangci-lint, terraform, glab, op). `ci-linux-dind`: ci-linux plus the static
+docker CLI for docker-in-docker jobs. A che release (go-modules main) rebuilds
+here, then chains to the `infra/sandbox` image, which owns its own bake.
 
 ## Why It Exists
 
@@ -22,7 +21,7 @@ toolchain once turns that into a cached image pull.
 
 - One shared, versioned CI base image every repo pulls.
 - Multi-arch tags: one buildx build per image, MR pipelines warm the cache, tag/main pipelines publish.
-- Tool versions pinned in one place: `ci/tool-versions.env`.
+- Tool versions pinned in `ci/tool-versions.env`.
 - Public-pullable: cross-project pulls need no auth.
 - No per-job che compile, no per-job tool downloads.
 - Che releases propagate: rebuild here, re-bake the sandbox image.

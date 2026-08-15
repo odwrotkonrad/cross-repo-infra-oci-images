@@ -63,7 +63,7 @@ separately, in `configs/ci/zsh/scripts/installs/00-ci-deps.zsh`.
 CI builds both images on every non-draft MR (cache-only), `main`, and tag
 pipeline. `main` auto-creates the next `vX.Y.Z` release, and its tag pipeline
 publishes the pinned tag. A `main` pipeline (or a che release via
-`BUILD_ALL_IMAGES`) also triggers the `restricted/sandbox` re-bake. See
+`BUILD_ALL_IMAGES`) also triggers the `infra/sandbox` re-bake. See
 `.gitlab-ci.yml`.
 
 ## License
