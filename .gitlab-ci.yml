@@ -46,9 +46,8 @@ variables:
     - docker run --privileged --rm tonistiigi/binfmt --install arm64
     #[why] on a tag pipeline publish the immutable :vX.Y.Z consumers pin; else re-tag :latest as the version slot (harmless no-op)
     - VERSION_TAG="${CI_COMMIT_TAG:-latest}"
-    #[why] etag of the latest che tarball -> CHE_REF build-arg: busts the Dockerfile che layer only when che re-published (unchanged che keeps the cached layer). wget not curl: the docker:27-cli job image is alpine/busybox (no curl)
-    - CHE_REF="$(wget -S --spider -q -O /dev/null "https://gitlab.com/api/v4/projects/konradodwrot%2Fgo-modules/packages/generic/che/latest/che_latest_linux_amd64.tar.gz" 2>&1 | tr -d '\r' | awk 'tolower($1)=="etag:"{print $2}')"
-    #[why] MR builds warm the shared registry cache only; tags publish from tag/main pipelines
+    #[why] busts the Dockerfile che layer only when che re-published (unchanged che keeps the cached layer). wget not curl: the docker:27-cli job image is alpine/busybox (no curl)
+    - CHE_ETAG="$(wget -S --spider -q -O /dev/null "https://gitlab.com/api/v4/projects/konradodwrot%2Fgo-modules/packages/generic/che/latest/che_latest_linux_amd64.tar.gz" 2>&1 | tr -d '\r' | awk 'tolower($1)=="etag:"{print $2}')"
     - if [ "$CI_PIPELINE_SOURCE" = "merge_request_event" ]; then OUTPUT_ARGS="--output type=cacheonly"; else OUTPUT_ARGS="--push"; fi
 
 build-ci-linux-image:
@@ -64,7 +63,7 @@ build-ci-linux-image:
         --target ci-linux
         --platform linux/amd64,linux/arm64
         --provenance=false
-        --build-arg "CHE_REF=$CHE_REF"
+        --build-arg "CHE_ETAG=$CHE_ETAG"
         --tag "$CI_LINUX_IMAGE:$VERSION_TAG"
         --tag "$CI_LINUX_IMAGE:latest"
         --tag "$CI_LINUX_IMAGE:latest-arm64"
@@ -88,7 +87,7 @@ build-ci-linux-dind-image:
         --target ci-linux-dind
         --platform linux/amd64,linux/arm64
         --provenance=false
-        --build-arg "CHE_REF=$CHE_REF"
+        --build-arg "CHE_ETAG=$CHE_ETAG"
         --tag "$CI_LINUX_DIND_IMAGE:$VERSION_TAG"
         --tag "$CI_LINUX_DIND_IMAGE:latest"
         --tag "$CI_LINUX_DIND_IMAGE:latest-arm64"
@@ -107,14 +106,14 @@ validate-pre-commit-all:
   before_script:
     - apt-get update && apt-get install -y --no-install-recommends make zsh git curl ca-certificates
     - export $(grep -vE '^\s*(#|$)' ci/tool-versions.env | xargs)
-    - che_base="https://gitlab.com/api/v4/projects/konradodwrot%2Fgo-modules/packages/generic/che/latest"
-    - curl -fsSL --connect-timeout 30 --retry 10 --retry-delay 30 --retry-all-errors -o /tmp/che.tar.gz "${che_base}/che_latest_linux_amd64.tar.gz"
+    - che_base_url="https://gitlab.com/api/v4/projects/konradodwrot%2Fgo-modules/packages/generic/che/latest"
+    - curl -fsSL --connect-timeout 30 --retry 10 --retry-delay 30 --retry-all-errors -o /tmp/che.tar.gz "${che_base_url}/che_latest_linux_amd64.tar.gz"
     - tar -xz -C /usr/local/bin -f /tmp/che.tar.gz che
     - curl --connect-timeout 30 --retry 10 --retry-delay 30 --retry-all-errors -fsSL -o /usr/local/bin/lefthook "https://github.com/evilmartians/lefthook/releases/download/v${LEFTHOOK_VERSION}/lefthook_${LEFTHOOK_VERSION}_Linux_x86_64"
     - echo "${LEFTHOOK_SHA256_LINUX_AMD64}  /usr/local/bin/lefthook" | sha256sum -c -
     - chmod +x /usr/local/bin/lefthook
     - mkdir -p ~/.config/lefthook
-    - '[ -f ~/.config/lefthook/lefthook.yml ] || printf "min_version: 2.1.9\n" > ~/.config/lefthook/lefthook.yml'
+    - '[ -f ~/.config/lefthook/lefthook.yml ] || printf "min_version: %s\n" "$LEFTHOOK_VERSION" > ~/.config/lefthook/lefthook.yml'
   script:
     - make repo-ci-precommit-all
     - git diff --exit-code HEAD
@@ -129,11 +128,11 @@ release:
   variables:
     GITLAB_TOKEN: $CI_JOB_TOKEN
   script:
-    - NEXT=$(sh ci/next-version.sh)
-    - echo "releasing $NEXT"
-    - glab release create "$NEXT" --name "oci-images $NEXT" --ref "$CI_COMMIT_SHA" --notes "oci-images $NEXT"
+    - NEXT_VERSION=$(sh ci/next-version.sh)
+    - echo "releasing $NEXT_VERSION"
+    - glab release create "$NEXT_VERSION" --name "oci-images $NEXT_VERSION" --ref "$CI_COMMIT_SHA" --notes "oci-images $NEXT_VERSION"
 
-#[why] chain a che release into a sandbox re-bake: go-modules main -> here (BUILD_ALL_IMAGES) -> restricted/sandbox, so the published sandbox image re-bakes the fresh che; also fires on this repo's own default-branch pipelines. no needs: stage ordering already puts it after the ci-linux builds
+#[why] chain a che release into a sandbox re-bake: go-modules main -> here (BUILD_ALL_IMAGES) -> infra/sandbox, so the published sandbox image re-bakes the fresh che; also fires on this repo's own default-branch pipelines. no needs: stage ordering already puts it after the ci-linux builds
 rebuild-sandbox-image:
   stage: trigger-image
   rules:

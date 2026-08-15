@@ -1,10 +1,8 @@
 #!/bin/sh
 ##[>] 🤖🤖
-# Compute the next patch version from the highest vX.Y.Z tag in the project.
-# Prints the next tag (e.g. v0.0.1 when no tags exist) to stdout.
 set -eu
 
-api="${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/repository/tags?per_page=100&order_by=version&sort=desc"
+tags_url="${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/repository/tags?per_page=100&order_by=version&sort=desc"
 
 fetch() {
   if command -v curl >/dev/null 2>&1; then
@@ -14,21 +12,21 @@ fetch() {
   fi
 }
 
-latest=$(
-  fetch "$api" \
+latest_version=$(
+  fetch "$tags_url" \
     | grep -oE '"name":"v[0-9]+\.[0-9]+\.[0-9]+"' \
     | sed -E 's/.*"v([0-9]+\.[0-9]+\.[0-9]+)"/\1/' \
     | sort -t. -k1,1n -k2,2n -k3,3n \
     | tail -1
 )
 
-if [ -z "$latest" ]; then
+if [ -z "$latest_version" ]; then
   echo "v0.0.1"
   exit 0
 fi
 
-major=$(echo "$latest" | cut -d. -f1)
-minor=$(echo "$latest" | cut -d. -f2)
-patch=$(echo "$latest" | cut -d. -f3)
+major=$(echo "$latest_version" | cut -d. -f1)
+minor=$(echo "$latest_version" | cut -d. -f2)
+patch=$(echo "$latest_version" | cut -d. -f3)
 echo "v${major}.${minor}.$((patch + 1))"
 ##[<] 🤖🤖
