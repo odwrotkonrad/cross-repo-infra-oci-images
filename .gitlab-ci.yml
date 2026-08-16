@@ -48,8 +48,11 @@ variables:
     - docker run --privileged --rm tonistiigi/binfmt --install arm64
     #[why] on a tag pipeline publish the immutable :vX.Y.Z consumers pin; else re-tag :latest as the version slot (harmless no-op)
     - VERSION_TAG="${CI_COMMIT_TAG:-latest}"
-    #[why] busts the Dockerfile che layer only when che re-published (unchanged che keeps the cached layer). wget not curl: the docker:27-cli job image is alpine/busybox (no curl)
-    - CHE_ETAG="$(wget -S --spider -q -O /dev/null "https://gitlab.com/api/v4/projects/konradodwrot%2Fgo-modules/packages/generic/che/latest/che_latest_linux_amd64.tar.gz" 2>&1 | tr -d '\r' | awk 'tolower($1)=="etag:"{print $2}')"
+    #[why] resolve the newest released che, skipping 0.0.0-mr* prereleases: the version keys the Dockerfile's che
+    #   layer, so a release busts it and an unchanged che keeps the cache. wget not curl, sed not jq: the
+    #   docker:27-cli job image is alpine/busybox
+    - CHE_VERSION="$(wget -qO- "https://gitlab.com/api/v4/projects/konradodwrot%2Fgo-modules/packages?package_name=che&package_type=generic&order_by=created_at&sort=desc&per_page=100" | tr ',' '\n' | sed -n 's/.*"version":"\([0-9][0-9.]*\)".*/\1/p' | head -1)"
+    - test -n "$CHE_VERSION"
     - if [ "$CI_PIPELINE_SOURCE" = "merge_request_event" ]; then OUTPUT_ARGS="--output type=cacheonly"; else OUTPUT_ARGS="--push"; fi
 
 build-ci-linux-image:
@@ -65,7 +68,7 @@ build-ci-linux-image:
         --target ci-linux
         --platform linux/amd64,linux/arm64
         --provenance=false
-        --build-arg "CHE_ETAG=$CHE_ETAG"
+        --build-arg "CHE_VERSION=$CHE_VERSION"
         --tag "$CI_LINUX_IMAGE:$VERSION_TAG"
         --tag "$CI_LINUX_IMAGE:latest"
         --tag "$CI_LINUX_IMAGE:latest-arm64"
@@ -89,7 +92,7 @@ build-ci-linux-dind-image:
         --target ci-linux-dind
         --platform linux/amd64,linux/arm64
         --provenance=false
-        --build-arg "CHE_ETAG=$CHE_ETAG"
+        --build-arg "CHE_VERSION=$CHE_VERSION"
         --tag "$CI_LINUX_DIND_IMAGE:$VERSION_TAG"
         --tag "$CI_LINUX_DIND_IMAGE:latest"
         --tag "$CI_LINUX_DIND_IMAGE:latest-arm64"
