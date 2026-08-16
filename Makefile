@@ -17,7 +17,7 @@ image-build-ci-linux:
 ##[>] Docs [genai-include]
 #[what] render *.ontoRepo.tpl onto the repo (makefile.agents.md, repo-structure.md, CLAUDE.md, AGENTS.md, README.md)
 render-templates:
-	@che render-templates
+	@che render-templates --profiles=ontoRepo
 ##[<] Docs
 
 ##[>] CI [genai-include]
