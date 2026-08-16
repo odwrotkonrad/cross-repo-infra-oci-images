@@ -51,7 +51,7 @@ variables:
     #[why] resolve the newest released che, skipping 0.0.0-mr* prereleases: the version keys the Dockerfile's che
     #   layer, so a release busts it and an unchanged che keeps the cache. wget not curl, sed not jq: the
     #   docker:27-cli job image is alpine/busybox
-    - CHE_VERSION="$(wget -qO- "https://gitlab.com/api/v4/projects/konradodwrot%2Fgo-modules/packages?package_name=che&package_type=generic&order_by=created_at&sort=desc&per_page=100" | tr ',' '\n' | sed -n 's/.*"version":"\([0-9][0-9.]*\)".*/\1/p' | head -1)"
+    - CHE_VERSION="$(wget -qO- "https://gitlab.com/api/v4/projects/konradodwrot%2Fgo-modules/packages?package_name=che&package_type=generic&order_by=created_at&sort=desc&per_page=100" | tr ',' '\n' | sed -n 's/.*"version":"\([0-9][0-9.]*\)".*/\1/p' | sed -n '1p')"
     - test -n "$CHE_VERSION"
     - if [ "$CI_PIPELINE_SOURCE" = "merge_request_event" ]; then OUTPUT_ARGS="--output type=cacheonly"; else OUTPUT_ARGS="--push"; fi
 
