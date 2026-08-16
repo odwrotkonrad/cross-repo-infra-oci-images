@@ -7,6 +7,8 @@ workflow:
 
 #[why] retry infrastructure flakes (image pulls, runner/network, stuck jobs) twice; script failures never retry
 default:
+  tags:
+    - gke-linux-amd64
   retry:
     max: 2
     when:
