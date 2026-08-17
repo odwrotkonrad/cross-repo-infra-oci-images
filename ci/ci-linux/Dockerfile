@@ -60,7 +60,7 @@ RUN set -eux; \
     rm /tmp/golangci-lint.tar.gz
 
 #[why] prebuilt tarballs from the package registry, not go install: skip che's slow CGO build (tree-sitter + 1Password sdk)
-#   one che tarball bundles che + render-tpl (one fetch, no checksum: version-resolved by the pipeline)
+#   one che tarball carries the whole CLI, render subcommands included (one fetch, no checksum: version-resolved by the pipeline)
 #[why] CHE_VERSION is the concrete released version, not the latest alias: the alias serves a stable etag across
 #   re-uploads, so an etag-keyed layer never busts and the image keeps baking a stale che. the version changes on
 #   every release, busting this layer exactly when che changes and recording what got baked in the build args
@@ -75,7 +75,7 @@ RUN set -eux; \
     esac; \
     che_base_url="https://gitlab.com/api/v4/projects/konradodwrot%2Fgo-modules/packages/generic/che/${CHE_VERSION}"; \
     curl -fsSL --connect-timeout 30 --retry 10 --retry-delay 30 --retry-all-errors -o /tmp/che.tar.gz "${che_base_url}/che_${CHE_VERSION}_${che_plat}.tar.gz"; \
-    tar -xz -C /usr/local/bin -f /tmp/che.tar.gz che render-tpl; \
+    tar -xz -C /usr/local/bin -f /tmp/che.tar.gz che; \
     rm /tmp/che.tar.gz
 
 RUN set -eux; \

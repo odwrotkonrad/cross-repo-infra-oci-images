@@ -6,7 +6,10 @@ workflow:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
 
 #[why] retry infrastructure flakes (image pulls, runner/network, stuck jobs) twice; script failures never retry
+#[why] a superseded pipeline holds pods for a commit nobody will merge: cancel it and let
+#   the autoscaler release the node. jobs with an external side effect opt out individually
 default:
+  interruptible: true
   tags:
     - gke-linux-amd64
   retry:
@@ -124,7 +127,9 @@ validate-pre-commit-all:
     - git diff --exit-code HEAD
 
 #[why] auto-tag vX.Y.Z on main; the tag pipeline rebuilds the image and publishes the immutable :vX.Y.Z consumers pin
+#[why] not interruptible: it cuts a GitLab release, and a half-created tag is worse than a slow one
 release:
+  interruptible: false
   stage: release
   image: $CI_LINUX_IMAGE:latest
   needs: []
@@ -138,7 +143,10 @@ release:
     - glab release create "$NEXT_VERSION" --name "oci-images $NEXT_VERSION" --ref "$CI_COMMIT_SHA" --notes "oci-images $NEXT_VERSION"
 
 #[why] chain a che release into a sandbox re-bake: go-modules main -> here (BUILD_ALL_IMAGES) -> infra/sandbox, so the published sandbox image re-bakes the fresh che; also fires on this repo's own default-branch pipelines. no needs: stage ordering already puts it after the ci-linux builds
+#[why] not interruptible: cancelling a trigger job orphans the downstream pipeline it started, which
+#   is left running with nothing watching it
 rebuild-sandbox-image:
+  interruptible: false
   stage: trigger-image
   rules:
     - if: $BUILD_ALL_IMAGES
