@@ -46,7 +46,7 @@ variables:
     DOCKER_CERT_PATH: "/certs/client"
     DOCKER_TLS_VERIFY: "1"
   before_script:
-    - AR_TOKEN="$(wget -qO- --header='Metadata-Flavor: Google' "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token" | sed -n 's/.*"access_token":"\([^"]*\)".*/\1/p')"
+    - 'AR_TOKEN="$(wget -qO- --header="Metadata-Flavor: Google" "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token" | sed -n "s/.*\"access_token\":\"\([^\"]*\)\".*/\1/p")"'
     - test -n "$AR_TOKEN"
     - echo "$AR_TOKEN" | docker login -u oauth2accesstoken --password-stdin "${GRP_VAR_ARTIFACT_REGISTRY%%/*}"
     - docker context create dind --docker "host=$DOCKER_HOST,ca=$DOCKER_CERT_PATH/ca.pem,cert=$DOCKER_CERT_PATH/cert.pem,key=$DOCKER_CERT_PATH/key.pem"
