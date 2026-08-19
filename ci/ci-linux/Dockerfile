@@ -1,5 +1,6 @@
 ##[>] 🤖🤖🤖
-FROM debian:bookworm-slim AS ci-linux
+ARG BASE_IMAGE=debian:bookworm-slim
+FROM ${BASE_IMAGE} AS ci-linux
 
 COPY ci/tool-versions.env /tmp/tool-versions.env
 
