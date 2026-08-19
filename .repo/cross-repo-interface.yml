@@ -7,6 +7,7 @@ upstream:
   - configs/llm/claude
   - infra/iac/tf-lock
   - infra/oci-images/ci-linux
+  - infra/iac/ci-var/artifact-registry
 edges:
   go-modules/che: [ci-linux, dev-sandbox]
   configs/zsh/base-linux: [dev-sandbox]
