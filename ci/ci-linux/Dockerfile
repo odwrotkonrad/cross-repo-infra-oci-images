@@ -60,6 +60,14 @@ RUN set -eux; \
     tar -xz -C /usr/local/bin --strip-components=1 -f /tmp/golangci-lint.tar.gz "golangci-lint-${GOLANGCI_LINT_VERSION}-${golangci_plat}/golangci-lint"; \
     rm /tmp/golangci-lint.tar.gz
 
+#[why] go install, against this file's prebuilt-bins rule: gocover-cobertura publishes no release
+#   binaries and its dep tree is stdlib only, so the compile is seconds. before the che layer: a che
+#   release must not bust it
+RUN set -eux; \
+    . /tmp/tool-versions.env; \
+    GOFLAGS=-mod=mod go install "github.com/t-yuki/gocover-cobertura@${GOCOVER_COBERTURA_VERSION}"; \
+    gocover-cobertura --help >/dev/null 2>&1 || true
+
 #[why] prebuilt tarballs from the package registry, not go install: skip che's slow CGO build (tree-sitter + 1Password sdk)
 #   one che tarball carries the whole CLI, render subcommands included (one fetch, no checksum: version-resolved by the pipeline)
 #[why] CHE_VERSION is the concrete released version, not the latest alias: the alias serves a stable etag across
