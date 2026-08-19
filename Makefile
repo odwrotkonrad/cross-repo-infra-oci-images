@@ -4,9 +4,17 @@ SHELL := zsh
 .SHELLFLAGS := -c
 export PATH := $(CURDIR)/ci/zsh/scripts:$(PATH)
 
+WRAPPERS := repo-prepare-dev-env
 COMMANDS := render-templates repo-ci-prepare-hooks repo-ci-precommit-all image-build-ci-linux
 
-.PHONY: $(COMMANDS)
+.PHONY: $(WRAPPERS) $(COMMANDS)
+
+##[>] Dev Environment [genai-include]
+#[why] render precedes hooks: the docsgen pre-commit hook runs render-templates and fails on drift,
+#   so a fresh clone whose generated files were never rendered would fail its first commit
+#[what] make a fresh clone a working checkout: generated docs, git hooks
+repo-prepare-dev-env: render-templates repo-ci-prepare-hooks
+##[<] Dev Environment
 
 ##[>] Images [genai-include]
 #[what] build ci-linux:local for the host arch
