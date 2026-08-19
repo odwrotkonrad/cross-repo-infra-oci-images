@@ -45,19 +45,17 @@ variables:
     DOCKER_TLS_CERTDIR: "/certs"
     DOCKER_CERT_PATH: "/certs/client"
     DOCKER_TLS_VERIFY: "1"
-    DOCKER_CONFIG: "/certs/docker-config"
   before_script:
     - 'AR_TOKEN="$(wget -qO- --header="Metadata-Flavor: Google" "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token" | sed -n "s/.*\"access_token\":\"\([^\"]*\)\".*/\1/p")"'
     - test -n "$AR_TOKEN"
-    #[why] written to the volume the dind service shares with this container, and DOCKER_CONFIG
-    #   points both at it: the daemon then reads the same credentials for the pulls it performs
-    #   itself, rather than depending on the CLI attaching them per request. the token is minted
-    #   here because it lives an hour, so it cannot come from a DOCKER_AUTH_CONFIG set before the
-    #   job starts
-    - mkdir -p "$DOCKER_CONFIG"
     - echo "$AR_TOKEN" | docker login -u oauth2accesstoken --password-stdin "${GRP_VAR_ARTIFACT_REGISTRY%%/*}"
     - docker context create dind --docker "host=$DOCKER_HOST,ca=$DOCKER_CERT_PATH/ca.pem,cert=$DOCKER_CERT_PATH/cert.pem,key=$DOCKER_CERT_PATH/key.pem"
     - docker buildx create --use --driver docker-container dind
+    #[why] pulled explicitly, because the daemon performing it holds no credentials and cannot be
+    #   given any: registry auth is client-side, sent per request as a header, and the daemon reads
+    #   no config of its own. `docker pull` sends it, the implicit pull behind `docker run` does
+    #   not, so that one was denied. after this the image is local and the run needs no registry
+    - docker pull $GRP_VAR_ARTIFACT_REGISTRY_PROXY_DOCKERHUB/tonistiigi/binfmt
     - docker run --privileged --rm $GRP_VAR_ARTIFACT_REGISTRY_PROXY_DOCKERHUB/tonistiigi/binfmt --install arm64
     #[why] on a tag pipeline publish the immutable :vX.Y.Z consumers pin; else re-tag :latest as the version slot (harmless no-op)
     - VERSION_TAG="${CI_COMMIT_TAG:-latest}"
