@@ -45,9 +45,16 @@ variables:
     DOCKER_TLS_CERTDIR: "/certs"
     DOCKER_CERT_PATH: "/certs/client"
     DOCKER_TLS_VERIFY: "1"
+    DOCKER_CONFIG: "/certs/docker-config"
   before_script:
     - 'AR_TOKEN="$(wget -qO- --header="Metadata-Flavor: Google" "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token" | sed -n "s/.*\"access_token\":\"\([^\"]*\)\".*/\1/p")"'
     - test -n "$AR_TOKEN"
+    #[why] written to the volume the dind service shares with this container, and DOCKER_CONFIG
+    #   points both at it: the daemon then reads the same credentials for the pulls it performs
+    #   itself, rather than depending on the CLI attaching them per request. the token is minted
+    #   here because it lives an hour, so it cannot come from a DOCKER_AUTH_CONFIG set before the
+    #   job starts
+    - mkdir -p "$DOCKER_CONFIG"
     - echo "$AR_TOKEN" | docker login -u oauth2accesstoken --password-stdin "${GRP_VAR_ARTIFACT_REGISTRY%%/*}"
     - docker context create dind --docker "host=$DOCKER_HOST,ca=$DOCKER_CERT_PATH/ca.pem,cert=$DOCKER_CERT_PATH/cert.pem,key=$DOCKER_CERT_PATH/key.pem"
     - docker buildx create --use --driver docker-container dind
