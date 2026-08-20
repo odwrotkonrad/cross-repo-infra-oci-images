@@ -5,7 +5,7 @@ SHELL := zsh
 export PATH := $(CURDIR)/ci/zsh/scripts:$(PATH)
 
 WRAPPERS := repo-prepare-dev-env
-COMMANDS := render-templates repo-ci-prepare-hooks repo-ci-precommit-all image-build-ci-linux
+COMMANDS := render-templates repo-render-env repo-ci-prepare-hooks repo-ci-precommit-all image-build-ci-linux
 
 .PHONY: $(WRAPPERS) $(COMMANDS)
 
@@ -13,7 +13,7 @@ COMMANDS := render-templates repo-ci-prepare-hooks repo-ci-precommit-all image-b
 #[why] render precedes hooks: the docsgen pre-commit hook runs render-templates and fails on drift,
 #   so a fresh clone whose generated files were never rendered would fail its first commit
 #[what] make a fresh clone a working checkout: generated docs, git hooks
-repo-prepare-dev-env: render-templates repo-ci-prepare-hooks
+repo-prepare-dev-env: repo-render-env render-templates repo-ci-prepare-hooks
 ##[<] Dev Environment
 
 ##[>] Images [genai-include]
@@ -26,6 +26,10 @@ image-build-ci-linux:
 #[what] render *.ontoRepo.tpl onto the repo (makefile.agents.md, repo-structure.md, CLAUDE.md, AGENTS.md, README.md)
 render-templates:
 	@che render-templates --profiles=ontoRepo
+
+#[what] render .env.tpl to .env: upstream refs and CI variables via glab, secrets via op
+repo-render-env:
+	@CHE_ENV_UNSET=empty che render-templates --profiles=envSeed
 ##[<] Docs
 
 ##[>] CI [genai-include]
