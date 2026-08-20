@@ -1,1 +1,1 @@
-{{- remoteFile "gitlab.com/konradodwrot/infra/iac//tf/.terraform.lock.hcl" -}}
+{{- remoteFile "gitlab.com/konradodwrot/cross-repo/infra/iac//tf/.terraform.lock.hcl" -}}
