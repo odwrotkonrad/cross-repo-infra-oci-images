@@ -31,7 +31,8 @@ stages:
 variables:
   ARTIFACT_REGISTRY: $GRP_KO_VAR_ARTIFACT_REGISTRY
   ARTIFACT_REGISTRY_PROXY_DOCKERHUB: $GRP_KO_VAR_ARTIFACT_REGISTRY_PROXY_DOCKERHUB
-  PROSE_REF: $GRP_KO_VAR_PROSE_REF
+  PROSE_ASSETS_REF: $GRP_KO_VAR_PROSE_ASSETS_REF
+  PROSE_SPEC_REF: $GRP_KO_VAR_PROSE_SPEC_REF
   CI_LINUX_IMAGE: $ARTIFACT_REGISTRY/ci-linux
   CI_LINUX_DIND_IMAGE: $ARTIFACT_REGISTRY/ci-linux-dind
   CHE_VALIDATE_SPEC: error
@@ -169,7 +170,7 @@ rebuild-sandbox-image:
   variables:
     BUILD_SANDBOX_IMAGE: "true"
   trigger:
-    project: konradodwrot/infra/sandbox
+    project: konradodwrot/ai-sandbox
     branch: main
     forward:
       yaml_variables: true
@@ -186,9 +187,9 @@ trigger-control-regen:
   variables:
     RELEASE_TAG: $CI_COMMIT_TAG
     PRODUCER: oci-images
-    PRODUCER_ARTIFACT: infra/oci-images/ci-linux
+    PRODUCER_ARTIFACT: cross-repo/infra/oci-images/ci-linux
   trigger:
-    project: konradodwrot/control
+    project: konradodwrot/cross-repo/automation
     branch: main
     forward:
       yaml_variables: true
