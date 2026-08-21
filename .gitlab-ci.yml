@@ -50,9 +50,6 @@ variables:
     DOCKER_CERT_PATH: "/certs/client"
     DOCKER_TLS_VERIFY: "1"
   before_script:
-    - 'AR_TOKEN="$(wget -qO- --header="Metadata-Flavor: Google" "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token" | sed -n "s/.*\"access_token\":\"\([^\"]*\)\".*/\1/p")"'
-    - test -n "$AR_TOKEN"
-    - echo "$AR_TOKEN" | docker login -u oauth2accesstoken --password-stdin "${ARTIFACT_REGISTRY%%/*}"
     - docker context create dind --docker "host=$DOCKER_HOST,ca=$DOCKER_CERT_PATH/ca.pem,cert=$DOCKER_CERT_PATH/cert.pem,key=$DOCKER_CERT_PATH/key.pem"
     - docker buildx create --use --driver docker-container dind
     #[why] pulled explicitly, because the daemon performing it holds no credentials and cannot be
@@ -122,6 +119,8 @@ build-ci-linux-dind-image:
 
 #[why] self-bootstrapping: this repo's own image may not exist yet (chicken/egg), so bootstrap from a minimal debian and fetch the same prebuilt che/lefthook the image bakes (no slow CGO compile of che)
 validate-pre-commit-all:
+  tags:
+    - gke-linux-amd64-small
   stage: validate
   needs: []
   image: $ARTIFACT_REGISTRY_PROXY_DOCKERHUB/library/debian:bookworm-slim
@@ -143,6 +142,8 @@ validate-pre-commit-all:
 #[why] auto-tag vX.Y.Z on main; the tag pipeline rebuilds the image and publishes the immutable :vX.Y.Z consumers pin
 #[why] not interruptible: it cuts a GitLab release, and a half-created tag is worse than a slow one
 release:
+  tags:
+    - gke-linux-amd64-small
   interruptible: false
   stage: release
   image: $CI_LINUX_IMAGE:latest
