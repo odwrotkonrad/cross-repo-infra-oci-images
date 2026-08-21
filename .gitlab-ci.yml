@@ -119,6 +119,8 @@ build-ci-linux-dind-image:
 
 #[why] self-bootstrapping: this repo's own image may not exist yet (chicken/egg), so bootstrap from a minimal debian and fetch the same prebuilt che/lefthook the image bakes (no slow CGO compile of che)
 validate-pre-commit-all:
+  tags:
+    - gke-linux-amd64-small
   stage: validate
   needs: []
   image: $ARTIFACT_REGISTRY_PROXY_DOCKERHUB/library/debian:bookworm-slim
@@ -140,6 +142,8 @@ validate-pre-commit-all:
 #[why] auto-tag vX.Y.Z on main; the tag pipeline rebuilds the image and publishes the immutable :vX.Y.Z consumers pin
 #[why] not interruptible: it cuts a GitLab release, and a half-created tag is worse than a slow one
 release:
+  tags:
+    - gke-linux-amd64-small
   interruptible: false
   stage: release
   image: $CI_LINUX_IMAGE:latest
