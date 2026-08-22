@@ -8,6 +8,8 @@ upstream:
   - cross-repo/infra/iac/tf-lock
   - cross-repo/infra/oci-images/ci-linux
   - cross-repo/infra/iac/ci-var/artifact-registry
+  - cross-repo/infra/iac/ci-var/configs-ref
+  - cross-repo/infra/iac/ci-var/iac-ref
 edges:
   go-modules/che: [ci-linux, dev-sandbox]
   configs/zsh/base-linux: [dev-sandbox]
