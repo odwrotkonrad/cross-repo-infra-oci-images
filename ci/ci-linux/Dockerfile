@@ -114,6 +114,18 @@ RUN set -eux; \
     unzip -d /usr/local/bin /tmp/terraform.zip; \
     rm /tmp/terraform.zip
 
+RUN set -eux; \
+    . /tmp/tool-versions.env; \
+    arch="$(dpkg --print-architecture)"; \
+    case "$arch" in \
+      amd64) terragrunt_sha="$TERRAGRUNT_SHA256_LINUX_AMD64" ;; \
+      arm64) terragrunt_sha="$TERRAGRUNT_SHA256_LINUX_ARM64" ;; \
+      *) echo "unsupported arch $arch" >&2; exit 1 ;; \
+    esac; \
+    curl --connect-timeout 30 --retry 10 --retry-delay 30 --retry-all-errors -fsSL -o /usr/local/bin/terragrunt "https://github.com/gruntwork-io/terragrunt/releases/download/v${TERRAGRUNT_VERSION}/terragrunt_linux_${arch}"; \
+    echo "${terragrunt_sha}  /usr/local/bin/terragrunt" | sha256sum -c -; \
+    chmod 0755 /usr/local/bin/terragrunt
+
 #[why] seed the plugin cache so consumers' 'terraform init' copies providers from disk, no re-download; seed files rendered from git-repos by che (docsgen), tracking its lock
 COPY ci/terraform-providers.tf /tmp/tf-cache-seed/versions.tf
 COPY ci/terraform.lock.hcl /tmp/tf-cache-seed/.terraform.lock.hcl

@@ -2,7 +2,7 @@
 include:
   - project: konradodwrot/cross-repo/misc
     ref: $GRP_KO_VAR_MISC_REF
-    file: shared/ci/templates/TriggerAutomation.gitlab-ci.yml
+    file: shared/ci/templates/EmitEvents.gitlab-ci.yml
 
 workflow:
   rules:
@@ -37,8 +37,10 @@ variables:
   ARTIFACT_REGISTRY: $GRP_KO_VAR_ARTIFACT_REGISTRY
   ARTIFACT_REGISTRY_PROXY_DOCKERHUB: $GRP_KO_VAR_ARTIFACT_REGISTRY_PROXY_DOCKERHUB
   PROSE_ASSETS_REF: $GRP_KO_VAR_PROSE_ASSETS_REF
-  CONFIGS_REF: $GRP_KO_VAR_CONFIGS_REF
+  CHE_SCHEMA_REF: $GRP_KO_VAR_CHE_SCHEMA_REF
+  AI_CONFIGS_REF: $GRP_KO_VAR_AI_CONFIGS_REF
   IAC_REF: $GRP_KO_VAR_IAC_REF
+  MISC_REF: $GRP_KO_VAR_MISC_REF
   CI_LINUX_IMAGE: $ARTIFACT_REGISTRY/ci-linux
   CI_LINUX_DIND_IMAGE: $ARTIFACT_REGISTRY/ci-linux-dind
   CHE_VALIDATE_SPEC: error
@@ -80,6 +82,10 @@ build-ci-linux-image:
     - if: $CI_MERGE_REQUEST_DRAFT == "true"
       when: never
     - when: on_success
+      changes:
+        - ci/**/*
+        - templates/**/*
+        - .gitlab-ci.yml
   script:
     - docker buildx build
         --file "$CI_PROJECT_DIR/ci/ci-linux/Dockerfile"
@@ -100,11 +106,16 @@ build-ci-linux-image:
 build-ci-linux-dind-image:
   extends: .build-image
   stage: build-image-dind
-  needs: [build-ci-linux-image]
+  needs:
+    - build-ci-linux-image
   rules:
     - if: $CI_MERGE_REQUEST_DRAFT == "true"
       when: never
     - when: on_success
+      changes:
+        - ci/**/*
+        - templates/**/*
+        - .gitlab-ci.yml
   script:
     - docker buildx build
         --file "$CI_PROJECT_DIR/ci/ci-linux/Dockerfile"
@@ -125,6 +136,19 @@ build-ci-linux-dind-image:
 
 #[why] self-bootstrapping: this repo's own image may not exist yet (chicken/egg), so bootstrap from a minimal debian and fetch the same prebuilt che/lefthook the image bakes (no slow CGO compile of che)
 validate-pre-commit-all:
+  rules:
+    - changes:
+        - .gitlab-ci.yml
+        - .env.tpl
+        - che.yml
+        - Makefile
+        - lefthook.yml
+        - .repo/*.tpl
+        - .repo/dependency-graph.yml
+        - .repo/artifacts-consumed.yml
+        - ci/**/*
+        - templates/**/*
+        - README.md
   tags:
     - gke-linux-amd64-small
   stage: validate
@@ -156,6 +180,10 @@ release:
   needs: []
   rules:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+      changes:
+        - ci/**/*
+        - templates/**/*
+        - .gitlab-ci.yml
   variables:
     GITLAB_TOKEN: $CI_JOB_TOKEN
   script:
@@ -163,15 +191,8 @@ release:
     - echo "releasing $NEXT_VERSION"
     - glab release create "$NEXT_VERSION" --name "oci-images $NEXT_VERSION" --ref "$CI_COMMIT_SHA" --notes "oci-images $NEXT_VERSION"
 
-trigger-automation:
-  extends: .TriggerAutomation
+emit-events:
+  extends: .emit-events
   stage: trigger-image
-  needs:
-    - build-ci-linux-image
-    - build-ci-linux-dind-image
-  rules:
-    - if: $CI_COMMIT_TAG
-  variables:
-    EVENT_TYPE: release.published
-    EVENT_DETAILS: '{"producer":"oci-images","artifact":"cross-repo/infra/oci-images/ci-linux"}'
+
 ##[<] 🤖🤖🤖
