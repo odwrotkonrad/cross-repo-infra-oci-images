@@ -57,11 +57,11 @@ claude-agents:
       - source: "git::https://gitlab.com/konradodwrot/ai-harness/configs@${{ env.AI_CONFIGS_REF }}//profiles/claude/che.yml::claude/virt"
         ctx:
           repo: OciImages
-#[what] the shared CI payload the emit-events and pipeline-gate jobs run
+#[what] the shared CI payload the emit-events job runs
 bootstrapCrossRepoCI:
   include:
     profiles:
-      - source: "git::https://gitlab.com/konradodwrot/cross-repo/misc@${{ env.MISC_REF }}//che.yml::bootstrapCrossRepoAssets"
+      - source: "git::https://gitlab.com/konradodwrot/cross-repo/misc@${{ env.MISC_REF }}//che.yml::bootstrapCrossRepoCITagging"
 
 envSeed:
   include:
