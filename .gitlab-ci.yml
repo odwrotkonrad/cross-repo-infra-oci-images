@@ -39,7 +39,6 @@ variables:
   PROSE_ASSETS_REF: $GRP_KO_VAR_PROSE_ASSETS_REF
   CHE_SCHEMA_REF: $GRP_KO_VAR_CHE_SCHEMA_REF
   AI_CONFIGS_REF: $GRP_KO_VAR_AI_CONFIGS_REF
-  IAC_REF: $GRP_KO_VAR_IAC_REF
   MISC_REF: $GRP_KO_VAR_MISC_REF
   CI_LINUX_IMAGE: $ARTIFACT_REGISTRY/ci-linux
   CI_LINUX_DIND_IMAGE: $ARTIFACT_REGISTRY/ci-linux-dind
@@ -144,8 +143,9 @@ validate-pre-commit-all:
         - Makefile
         - lefthook.yml
         - .repo/*.tpl
-        - .repo/dependency-graph.yml
-        - .repo/artifacts-consumed.yml
+        - .repo/deps-graph.yml
+        - .repo/upstream.yml
+        - .repo/upstream.env
         - ci/**/*
         - templates/**/*
         - README.md

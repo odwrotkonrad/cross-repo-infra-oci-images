@@ -1,5 +1,5 @@
 ##[>] 🤖
-produces:
+downstream:
   - uri: us-central1-docker.pkg.dev/staging-499418/ci/ci-linux
     type: ociImage
     versionEnvVar: OCI_IMAGES_CI_LINUX_REF
