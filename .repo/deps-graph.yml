@@ -1,8 +1,6 @@
 ##[>] 🤖
 dependsOn:
   us-central1-docker.pkg.dev/staging-499418/ci/ci-linux:
-    - uri: gitlab.com/konradodwrot/cross-repo/infra/iac
-      type: gitRepository
     - uri: gitlab.com/konradodwrot/cross-repo/misc
       type: gitRepository
     - uri: gitlab.com/konradodwrot/cross-repo/prose/assets

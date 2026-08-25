@@ -126,19 +126,6 @@ RUN set -eux; \
     echo "${terragrunt_sha}  /usr/local/bin/terragrunt" | sha256sum -c -; \
     chmod 0755 /usr/local/bin/terragrunt
 
-#[why] seed the plugin cache so consumers' 'terraform init' copies providers from disk, no re-download; seed files rendered from git-repos by che (docsgen), tracking its lock
-COPY ci/terraform-providers.tf /tmp/tf-cache-seed/versions.tf
-COPY ci/terraform.lock.hcl /tmp/tf-cache-seed/.terraform.lock.hcl
-RUN set -eux; \
-    mkdir -p "$TF_PLUGIN_CACHE_DIR"; \
-    for i in $(seq 1 10); do \
-      terraform -chdir=/tmp/tf-cache-seed init -input=false -backend=false && break; \
-      [ "$i" = 10 ] && exit 1; \
-      sleep 30; \
-    done; \
-    chmod -R a+rX "$TF_PLUGIN_CACHE_DIR"; \
-    rm -rf /tmp/tf-cache-seed
-
 RUN set -eux; \
     . /tmp/tool-versions.env; \
     arch="$(dpkg --print-architecture)"; \
