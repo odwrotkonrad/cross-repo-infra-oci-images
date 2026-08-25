@@ -10,9 +10,6 @@ dependsOn:
     - uri: gitlab.com/konradodwrot/go-modules/che
       type: goModule
   us-central1-docker.pkg.dev/staging-499418/ci/ci-linux-dind: []
-  ciEnv:
-    - uri: us-central1-docker.pkg.dev/staging-499418/ci/ci-linux
-      type: ociImage
   devEnv:
     - uri: gitlab.com/konradodwrot/ai-harness/configs
       type: gitRepository

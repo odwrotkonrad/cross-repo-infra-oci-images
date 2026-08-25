@@ -18,7 +18,4 @@ upstream:
   - uri: gitlab.com/konradodwrot/go-modules/che-schema
     type: file
     versionEnvVar: CHE_SCHEMA_REF
-  - uri: us-central1-docker.pkg.dev/staging-499418/ci/ci-linux
-    type: ociImage
-    versionEnvVar: OCI_IMAGES_CI_LINUX_REF
 ##[<] 🤖
