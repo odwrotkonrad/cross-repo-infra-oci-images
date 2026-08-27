@@ -11,7 +11,7 @@ dependsOn:
       type: goModule
   us-central1-docker.pkg.dev/staging-499418/ci/ci-linux-dind: []
   devEnv:
-    - uri: gitlab.com/konradodwrot/ai-harness/configs
+    - uri: gitlab.com/konradodwrot/ai-harness/ai-tools-configs
       type: gitRepository
     - uri: gitlab.com/konradodwrot/go-modules/che-schema
       type: file
