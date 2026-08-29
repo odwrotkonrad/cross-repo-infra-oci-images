@@ -1,8 +1,16 @@
 ##[>] 🤖🤖🤖
 include:
-  - project: konradodwrot/cross-repo/misc
-    ref: $GRP_KO_VAR_MISC_REF
-    file: shared/ci/templates/EmitEvents.gitlab-ci.yml
+  - project: konradodwrot/centralized/assets/generic
+    ref: $GRP_KO_VAR_CENTRALIZED_ASSETS_GENERIC_REF
+    file: consumer-repo-config/ci/templates/EmitEvents.gitlab-ci.yml
+  - project: konradodwrot/centralized/assets/generic
+    ref: $GRP_KO_VAR_CENTRALIZED_ASSETS_GENERIC_REF
+    file:
+      - consumer-repo-config/files-generation/templates/FilesTrackedVerify.gitlab-ci.yml
+      - consumer-repo-config/precommit-lefthook/templates/PrecommitChanged.gitlab-ci.yml
+      - consumer-repo-config/precommit-lefthook/templates/PrecommitAll.gitlab-ci.yml
+    inputs:
+      image: $CI_LINUX_IMAGE:latest
 
 workflow:
   rules:
@@ -36,12 +44,14 @@ stages:
 variables:
   ARTIFACT_REGISTRY: $GRP_KO_VAR_ARTIFACT_REGISTRY
   ARTIFACT_REGISTRY_PROXY_DOCKERHUB: $GRP_KO_VAR_ARTIFACT_REGISTRY_PROXY_DOCKERHUB
-  PROSE_ASSETS_REF: $GRP_KO_VAR_PROSE_ASSETS_REF
+  ARTIFACT_REGISTRY_PROXY_GCR: $GRP_KO_VAR_ARTIFACT_REGISTRY_PROXY_GCR
   CHE_SCHEMA_REF: $GRP_KO_VAR_CHE_SCHEMA_REF
   AI_TOOLS_CONFIGS_REF: $GRP_KO_VAR_AI_TOOLS_CONFIGS_REF
-  MISC_REF: $GRP_KO_VAR_MISC_REF
+  CENTRALIZED_ASSETS_GENERIC_REF: $GRP_KO_VAR_CENTRALIZED_ASSETS_GENERIC_REF
+  CI_IMAGE: $ARTIFACT_REGISTRY/ci-linux:latest
   CI_LINUX_IMAGE: $ARTIFACT_REGISTRY/ci-linux
   CI_LINUX_DIND_IMAGE: $ARTIFACT_REGISTRY/ci-linux-dind
+  CHE_IMAGE: $ARTIFACT_REGISTRY/che
   CHE_VALIDATE_SPEC: error
 
 #[why] one multi-arch buildx build per image (arm64 qemu-emulated via binfmt), pushing the multi-arch manifest tags directly; the dind image is a target of the same Dockerfile and builds after the base so its registry cache is warm. MR pipelines export registry cache only (no tags pushed)
@@ -72,6 +82,8 @@ variables:
     #   docker:27-cli job image is alpine/busybox
     - CHE_VERSION="$(wget -qO- "https://gitlab.com/api/v4/projects/konradodwrot%2Fgo-modules/packages?package_name=che&package_type=generic&order_by=created_at&sort=desc&per_page=100" | tr ',' '\n' | sed -n 's/.*"version":"\([0-9][0-9.]*\)".*/\1/p' | sed -n '1p')"
     - test -n "$CHE_VERSION"
+    - CHE_PIN_VERSION="$(sed -n 's#^GO_MODULES_CHE_REF=che/v##p' .repo/upstream.env)"
+    - test -n "$CHE_PIN_VERSION"
     - if [ "$CI_PIPELINE_SOURCE" = "merge_request_event" ]; then OUTPUT_ARGS="--output type=cacheonly"; else OUTPUT_ARGS="--push"; fi
 
 build-ci-linux-image:
@@ -99,6 +111,34 @@ build-ci-linux-image:
         --tag "$CI_LINUX_IMAGE:$CI_COMMIT_SHORT_SHA"
         --cache-from "type=registry,ref=$CI_LINUX_IMAGE-cache"
         --cache-to "type=registry,ref=$CI_LINUX_IMAGE-cache,mode=max"
+        $OUTPUT_ARGS
+        "$CI_PROJECT_DIR"
+
+build-che-image:
+  extends: .build-image
+  needs: []
+  rules:
+    - if: $CI_MERGE_REQUEST_DRAFT == "true"
+      when: never
+    - when: on_success
+      changes:
+        - ci/che/**/*
+        - .repo/upstream.env
+        - .gitlab-ci.yml
+  script:
+    - docker buildx build
+        --file "$CI_PROJECT_DIR/ci/che/Dockerfile"
+        --target che
+        --platform linux/amd64,linux/arm64
+        --provenance=false
+        --build-arg "BUILDER_IMAGE=$ARTIFACT_REGISTRY_PROXY_DOCKERHUB/library/alpine:3"
+        --build-arg "BASE_IMAGE=$ARTIFACT_REGISTRY_PROXY_GCR/distroless/static-debian13:nonroot"
+        --build-arg "CHE_VERSION=$CHE_PIN_VERSION"
+        --tag "$CHE_IMAGE:v$CHE_PIN_VERSION"
+        --tag "$CHE_IMAGE:latest"
+        --tag "$CHE_IMAGE:$CI_COMMIT_SHORT_SHA"
+        --cache-from "type=registry,ref=$CHE_IMAGE-cache"
+        --cache-to "type=registry,ref=$CHE_IMAGE-cache,mode=max"
         $OUTPUT_ARGS
         "$CI_PROJECT_DIR"
 
@@ -132,41 +172,6 @@ build-ci-linux-dind-image:
         --cache-to "type=registry,ref=$CI_LINUX_DIND_IMAGE-cache,mode=max"
         $OUTPUT_ARGS
         "$CI_PROJECT_DIR"
-
-#[why] self-bootstrapping: this repo's own image may not exist yet (chicken/egg), so bootstrap from a minimal debian and fetch the same prebuilt che/lefthook the image bakes (no slow CGO compile of che)
-validate-pre-commit-all:
-  rules:
-    - changes:
-        - .gitlab-ci.yml
-        - .che/**/*
-        - Makefile
-        - lefthook.yml
-        - .repo/*.tpl
-        - .repo/deps-graph.yml
-        - .repo/upstream.yml
-        - .repo/upstream.env
-        - ci/**/*
-        - templates/**/*
-        - README.md
-  tags:
-    - gke-linux-amd64-small
-  stage: validate
-  needs: []
-  image: $ARTIFACT_REGISTRY_PROXY_DOCKERHUB/library/debian:bookworm-slim
-  before_script:
-    - apt-get update && apt-get install -y --no-install-recommends make zsh git curl ca-certificates
-    - export $(grep -vE '^\s*(#|$)' ci/tool-versions.env | xargs)
-    - che_base_url="https://gitlab.com/api/v4/projects/konradodwrot%2Fgo-modules/packages/generic/che/latest"
-    - curl -fsSL --connect-timeout 30 --retry 10 --retry-delay 30 --retry-all-errors -o /tmp/che.tar.gz "${che_base_url}/che_latest_linux_amd64.tar.gz"
-    - tar -xz -C /usr/local/bin -f /tmp/che.tar.gz che
-    - curl --connect-timeout 30 --retry 10 --retry-delay 30 --retry-all-errors -fsSL -o /usr/local/bin/lefthook "https://github.com/evilmartians/lefthook/releases/download/v${LEFTHOOK_VERSION}/lefthook_${LEFTHOOK_VERSION}_Linux_x86_64"
-    - echo "${LEFTHOOK_SHA256_LINUX_AMD64}  /usr/local/bin/lefthook" | sha256sum -c -
-    - chmod +x /usr/local/bin/lefthook
-    - mkdir -p ~/.config/lefthook
-    - '[ -f ~/.config/lefthook/lefthook.yml ] || printf "min_version: %s\n" "$LEFTHOOK_VERSION" > ~/.config/lefthook/lefthook.yml'
-  script:
-    - make repo-ci-precommit-all
-    - git diff --exit-code HEAD
 
 #[why] auto-tag vX.Y.Z on main; the tag pipeline rebuilds the image and publishes the immutable :vX.Y.Z consumers pin
 #[why] not interruptible: it cuts a GitLab release, and a half-created tag is worse than a slow one
