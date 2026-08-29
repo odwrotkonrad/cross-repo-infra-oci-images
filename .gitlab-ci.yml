@@ -138,8 +138,7 @@ validate-pre-commit-all:
   rules:
     - changes:
         - .gitlab-ci.yml
-        - .env.tpl
-        - che.yml
+        - .che/**/*
         - Makefile
         - lefthook.yml
         - .repo/*.tpl

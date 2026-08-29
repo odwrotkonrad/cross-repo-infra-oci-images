@@ -27,7 +27,7 @@ image-build-ci-linux:
 render-templates:
 	@che render-templates --profiles=ontoRepo
 
-#[what] render .env.tpl to .env: upstream refs and CI variables via glab, secrets via op
+#[what] render .che/repo-git-untracked/templates/env.tpl to .env: upstream refs and CI variables via glab, secrets via op
 repo-render-env:
 	@CHE_ENV_UNSET=empty che render-templates --profiles=envSeed
 ##[<] Docs
