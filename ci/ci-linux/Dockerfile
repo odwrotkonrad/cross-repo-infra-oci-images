@@ -9,6 +9,7 @@ ENV GOROOT=/usr/local/go
 ENV PATH=/usr/local/go/bin:/usr/local/go-tools/bin:/usr/local/bin:$PATH
 ENV CLICOLOR=0
 ENV TF_PLUGIN_CACHE_DIR=/usr/local/terraform.d/plugin-cache
+RUN mkdir -p "$TF_PLUGIN_CACHE_DIR"
 
 RUN apt-get update \
  && apt-get install -y --no-install-recommends \
