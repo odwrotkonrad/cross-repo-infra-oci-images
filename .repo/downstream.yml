@@ -3,9 +3,9 @@ downstream:
   - uri: us-central1-docker.pkg.dev/staging-499418/ci/ci-linux
     type: ociImage
     versionEnvVar: OCI_IMAGES_CI_LINUX_REF
-    version: v0.0.139
+    version: v0.0.141
   - uri: us-central1-docker.pkg.dev/staging-499418/ci/ci-linux-dind
     type: ociImage
     versionEnvVar: OCI_IMAGES_CI_LINUX_DIND_REF
-    version: v0.0.139
+    version: v0.0.141
 ##[<] 🤖
