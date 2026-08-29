@@ -4,41 +4,31 @@ SHELL := zsh
 .SHELLFLAGS := -c
 export PATH := $(CURDIR)/ci/zsh/scripts:$(PATH)
 
-WRAPPERS := repo-prepare-dev-env
-COMMANDS := render-templates repo-render-env repo-ci-prepare-hooks repo-ci-precommit-all image-build-ci-linux
+COMMANDS := che-install generic-setup image-build-ci-linux image-build-che
 
-.PHONY: $(WRAPPERS) $(COMMANDS)
+.PHONY: $(COMMANDS)
 
-##[>] Dev Environment [genai-include]
-#[why] render precedes hooks: the docsgen pre-commit hook runs render-templates and fails on drift,
-#   so a fresh clone whose generated files were never rendered would fail its first commit
-#[what] make a fresh clone a working checkout: generated docs, git hooks
-repo-prepare-dev-env: repo-render-env render-templates repo-ci-prepare-hooks
-##[<] Dev Environment
+-include shared/generic/make/generic.mk
+
+##[>] Setup [genai-include]
+#[what] install the latest released che into ~/.local/bin, only when the one on PATH is older
+che-install:
+	@curl -fsSL https://konradodwrot.gitlab.io/go-modules/che-install.sh | sh -s -- --skip-if-present-is-newer
+
+#[what] render the generic consumer payload (generic.mk, lefthook.yml, shared/generic/) at the pinned CENTRALIZED_ASSETS_GENERIC_REF
+generic-setup:
+	@$${CHE_BIN:-che} render-templates --profiles=genericSetup
+
+shared/generic/make/generic.mk: generic-setup
+##[<] Setup
 
 ##[>] Images [genai-include]
 #[what] build ci-linux:local for the host arch
 image-build-ci-linux:
 	@image-build-ci-linux.zsh
+
+#[what] build che:local (distroless, che only) for the host arch at the .repo/upstream.env che pin
+image-build-che:
+	@image-build-che.zsh
 ##[<] Images
-
-##[>] Docs [genai-include]
-#[what] render *.ontoRepo.tpl onto the repo (makefile.agents.md, repo-structure.md, CLAUDE.md, AGENTS.md, README.md)
-render-templates:
-	@che render-templates --profiles=ontoRepo
-
-#[what] render .che/repo-git-untracked/templates/env.tpl to .env: upstream refs and CI variables via glab, secrets via op
-repo-render-env:
-	@CHE_ENV_UNSET=empty che render-templates --profiles=envSeed
-##[<] Docs
-
-##[>] CI [genai-include]
-#[what] install lefthook git hooks
-repo-ci-prepare-hooks:
-	@lefthook install --force
-
-#[what] run pre-commit hooks over all files (not just staged)
-repo-ci-precommit-all: repo-ci-prepare-hooks
-	@lefthook run pre-commit --all-files --force
-##[<] CI
 ##[<] 🤖🤖

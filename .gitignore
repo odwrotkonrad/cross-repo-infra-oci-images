@@ -8,4 +8,6 @@
 /assets/data/repo-structure.md
 /assets/docs-agents/purpose.md
 /.env
+/shared/
+/lefthook.yml
 ##[<] 🤖
