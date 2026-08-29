@@ -1,5 +1,6 @@
 .claude/settings.local.json
 !.repo/
+!.che/
 ##[>] 🤖
 /AGENTS.md
 /CLAUDE.md
