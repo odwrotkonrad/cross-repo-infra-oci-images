@@ -1,14 +1,5 @@
+# [>] generic
+# [<] generic
 .claude/settings.local.json
-!.repo/
-!.che/
-##[>] 🤖
-/AGENTS.md
-/CLAUDE.md
-/assets/data/makefile.agents.md
-/assets/data/repo-structure.md
-/assets/docs-agents/purpose.md
-/.env
 /shared/
-/lefthook.yml
-##[<] 🤖
 /.che/cheVariables.local.yml
