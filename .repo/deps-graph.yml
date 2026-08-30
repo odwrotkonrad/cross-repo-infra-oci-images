@@ -11,4 +11,7 @@ dependsOn:
       type: gitRepository
     - uri: gitlab.com/konradodwrot/go-modules/che-schema
       type: file
+  ciEnv:
+    - uri: gitlab.com/konradodwrot/centralized/assets/generic
+      type: gitRepository
 ##[<] 🤖
