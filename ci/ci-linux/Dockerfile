@@ -13,7 +13,7 @@ RUN mkdir -p "$TF_PLUGIN_CACHE_DIR"
 
 RUN apt-get update \
  && apt-get install -y --no-install-recommends \
-      make git zsh curl ca-certificates clang sudo unzip xz-utils bzip2 file procps perl ruby \
+      make git zsh curl ca-certificates clang sudo unzip xz-utils bzip2 file procps perl ruby yamllint \
  && rm -rf /var/lib/apt/lists/*
 
 RUN set -eux; \
